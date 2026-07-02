@@ -414,14 +414,11 @@ void ha_fan_turn_on_pct(const char* entity_id, float pct) {
 
 void ha_light_turn_on_kelvin(const char* entity_id, uint16_t kelvin) {
   if (!authenticated) return;
-  StaticJsonDocument<256> doc;
-  doc["id"] = msg_id++;
-  doc["type"] = "call_service";
-  doc["domain"] = "light";
-  doc["service"] = "turn_on";
-  doc["service_data"]["entity_id"] = entity_id;
+  StaticJsonDocument<DOC_OUT> doc;
+  begin_call_service(doc, "light", "turn_on", entity_id);
   doc["service_data"]["color_temp_kelvin"] = kelvin;
   send_json(doc);
+  track_command(doc["id"].as<int>(), entity_id);   // TODO #5: resync if it fails
 }
 
 void ha_thermo_fan(bool on) {

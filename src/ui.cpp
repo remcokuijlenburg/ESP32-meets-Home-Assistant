@@ -716,11 +716,24 @@ void ui_set_outdoor_temp(int deg) {
 
 void ui_update_thermostat(const ThermoState* s) {
   // While the user is adjusting (or just sent), keep the locally-owned setpoints
-  // so HA's lagging echoes don't make the number jump back and "catch up".
+  // so HA's lagging echoes don't make the number jump back and "catch up". Also
+  // freeze `mode`/`dual` for the same window: if a state update lands mid-edit
+  // (e.g. hvac_mode changes underneath the user, heat_cool <-> single-setpoint),
+  // letting `dual` flip would make the debounced flush fire the wrong service
+  // call — single vs. dual, or against a target the user wasn't editing. Live
+  // fields that don't affect which call fires (current temp, hvac_action,
+  // availability) still update immediately either way.
   bool editing = setpoint_pending || (millis() - setpoint_send_ms < 3000);
   int keep_low = thermo.low, keep_high = thermo.high, keep_target = thermo.target;
+  bool keep_dual = thermo.dual;
+  char keep_mode[sizeof(thermo.mode)];
+  strncpy(keep_mode, thermo.mode, sizeof(keep_mode));
   thermo = *s;
-  if (editing) { thermo.low = keep_low; thermo.high = keep_high; thermo.target = keep_target; }
+  if (editing) {
+    thermo.low = keep_low; thermo.high = keep_high; thermo.target = keep_target;
+    thermo.dual = keep_dual;
+    strncpy(thermo.mode, keep_mode, sizeof(thermo.mode));
+  }
   thermo_tile_refresh();
   render_thermo_view();
 }
