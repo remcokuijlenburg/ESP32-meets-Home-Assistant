@@ -19,6 +19,13 @@
 #include "config.h"
 #include "secrets.h"   // WiFi creds, TZ/NTP (gitignored; see setup wizard)
 
+// Set by scripts/git_version.py at build time (the current git commit, plus
+// "-dirty" if the working tree had uncommitted changes). Fallback here only
+// matters if that script didn't run for some reason.
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "unknown"
+#endif
+
 static lv_indev_drv_t indev_drv;
 
 // One-time bring-up of the services that need WiFi (NTP, OTA, HA). Deferred to
@@ -33,7 +40,7 @@ static void start_services() {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Tessera starting...");
+  Serial.printf("Tessera starting... (firmware %s)\n", FIRMWARE_VERSION);
 
   lv_init();
   display_init();

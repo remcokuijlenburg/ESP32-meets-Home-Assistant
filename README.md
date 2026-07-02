@@ -272,6 +272,12 @@ To add a glyph that isn't in the catalog:
   a dependency install can't overwrite it. See `lib/TAMC_GT911/PATCH.md`.
 - Serial output requires `ARDUINO_USB_CDC_ON_BOOT=0` (already set in `platformio.ini`)
   so logging goes to the CH340 UART rather than native USB-CDC.
+- **Every build embeds the current git commit** (via `scripts/git_version.py`,
+  no manual version bumping) and prints it on boot — `Tessera starting...
+  (firmware a1b2c3d)`. A `-dirty` suffix means the working tree had
+  uncommitted changes at build time, so what's on the panel isn't exactly
+  what's in git history. Useful for telling which commit is running on which
+  panel, especially with `panels.py` managing more than one.
 - **HA IP-bans repeated failed logins.** If the panel retries a wrong token, Home
   Assistant will ban its IP and every request — including a *correct* token
   afterward — gets rejected until the ban clears. This is why the wizards
