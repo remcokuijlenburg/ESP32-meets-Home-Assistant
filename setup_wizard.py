@@ -109,20 +109,23 @@ def mask(value):
     return f"{value[0]}{'*' * (len(value) - 2)}{value[-1]}"
 
 
-def read_existing():
-    """Parse the current secrets.h (if any) into {KEY: value} for prefill."""
+def read_existing(path=SECRETS_PATH):
+    """Parse an existing secrets.h (if any) into {KEY: value} for prefill.
+
+    Defaults to include/secrets.h; panels.py passes a panel profile's own
+    secrets.h when copying credentials between panels."""
     values = {}
-    if not os.path.exists(SECRETS_PATH):
+    if not os.path.exists(path):
         return values
     pattern = re.compile(r'#define\s+(\w+)\s+"((?:[^"\\]|\\.)*)"')
-    with open(SECRETS_PATH, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             m = pattern.search(line)
             if m:
                 # un-escape \" and \\ back to raw text
                 values[m.group(1)] = m.group(2).replace('\\"', '"').replace("\\\\", "\\")
     # HA_PORT is a bare int in the header; grab it separately.
-    with open(SECRETS_PATH, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         m = re.search(r"#define\s+HA_PORT\s+(\d+)", f.read())
         if m:
             values["HA_PORT"] = m.group(1)
@@ -205,7 +208,9 @@ def validate_ha(host, port, token):
 
 # --- secrets.h writer --------------------------------------------------------
 
-def write_secrets(values):
+def write_secrets(values, path=SECRETS_PATH):
+    """Write values to a secrets.h. Defaults to include/secrets.h; panels.py
+    passes a panel profile's own path (panels/<name>/secrets.h)."""
     lines = [SECRETS_HEADER, "", "// WiFi"]
     lines.append(f'#define WIFI_SSID      "{c_escape(values["WIFI_SSID"])}"')
     lines.append(f'#define WIFI_PASSWORD  "{c_escape(values["WIFI_PASSWORD"])}"')
@@ -219,10 +224,10 @@ def write_secrets(values):
     lines.append(f'#define TZ_INFO    "{c_escape(values["TZ_INFO"])}"')
     lines.append(f'#define NTP_SERVER "{c_escape(values["NTP_SERVER"])}"')
     lines.append("")
-    os.makedirs(os.path.dirname(SECRETS_PATH), exist_ok=True)
-    with open(SECRETS_PATH, "w", encoding="utf-8", newline="\n") as f:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines))
-    print(f"\n  Wrote {SECRETS_PATH}")
+    print(f"\n  Wrote {path}")
 
 
 # --- flashing + serial confirm ----------------------------------------------

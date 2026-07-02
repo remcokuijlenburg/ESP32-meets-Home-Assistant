@@ -10,6 +10,11 @@ include/secrets.h
 # Per-user device layout (entities/tiles); commit config.h.example as the template.
 include/config.h
 
+# Multi-panel profiles (panels.py) — same sensitivity as config.h/secrets.h above:
+# per-panel device layout, credentials, and MAC-address registry.
+panels/*/
+panels/registry.json
+
 # Icon-font tooling (node deps)
 tools/node_modules
 

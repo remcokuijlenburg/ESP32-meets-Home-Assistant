@@ -7,6 +7,11 @@
 // entities, tiles, icons, and hardware pins — so it's safe to share or paste into
 // an LLM when adding devices. See the README "Adding devices" section.
 
+// Network name this panel advertises (mDNS: <name>.local) and uses for OTA.
+// Running more than one panel? Give each one a UNIQUE name here, or they'll
+// collide on "tessera.local" and OTA to either one becomes unreliable.
+#define OTA_HOSTNAME "tessera"
+
 // Header temperatures (read-only): indoor from a climate entity's
 // current_temperature, outdoor from a weather entity's temperature attribute.
 #define ENTITY_INDOOR_TEMP  "climate.your_thermostat"

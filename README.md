@@ -119,6 +119,37 @@ Public profiles). A failed OTA is safe — it writes to the inactive flash slot 
 only switches over after a complete, verified transfer. Serial logging needs USB;
 it isn't available over OTA.
 
+## Running multiple panels
+
+`config.h` and `secrets.h` are compiled into the firmware, so each physical
+panel is really its own build. Running more than one means keeping more than
+one `(config.h, secrets.h)` pair straight — and telling the panels apart when
+one is plugged in for an update. `panels.py` handles both:
+
+```sh
+python panels.py new              # register the connected board as a new panel
+python panels.py flash            # auto-detects which panel is connected, syncs
+                                   #   its files into include/, and reflashes it
+python panels.py flash kitchen    # or flash a specific one by name
+python panels.py flash kitchen --ota   # ...over WiFi instead of USB
+python panels.py list             # show known panels and their MAC addresses
+python panels.py identify         # what panel is plugged in right now?
+```
+
+Each panel gets its own folder at `panels/<name>/config.h` + `secrets.h`
+(gitignored, same as `include/config.h`/`secrets.h`) and a unique
+`OTA_HOSTNAME`, so panels don't collide on the same `<name>.local`. Under the
+hood, `panels.py` reads the board's hardware MAC address with `esptool` and
+keeps a MAC → panel-name map in `panels/registry.json`, so `flash` with no
+name works even if you can't remember which panel is on which USB port.
+
+`new` will offer to base a new panel's layout, or its WiFi/HA credentials, on
+an existing panel — handy since most panels in one house share the same
+network and Home Assistant instance and only differ in which devices they
+control. If you already have a single-panel setup (just `include/config.h` and
+`include/secrets.h`, no `panels/` folder yet), the first time you run `new` or
+`flash` it offers to adopt your existing setup as your first named panel.
+
 ## Working with an LLM (recommended)
 
 Tessera is built to be configured and extended with an AI coding assistant
@@ -213,17 +244,21 @@ To add a glyph that isn't in the catalog:
 - Serial output requires `ARDUINO_USB_CDC_ON_BOOT=0` (already set in `platformio.ini`)
   so logging goes to the CH340 UART rather than native USB-CDC.
 - **The serial port is hardcoded to `COM7`** in `serial_read.py` and `platformio.ini`
-  (`monitor_port`/`upload_port`). The setup wizard auto-detects the port when it
-  flashes, so this only matters for the serial monitor or a manual `pio` upload —
-  change it to your panel's port (`COMx`, or `/dev/tty.*` on macOS/Linux).
+  (`monitor_port`/`upload_port`). `setup_wizard.py` and `panels.py` both
+  auto-detect the port when they flash, so this only matters for the serial
+  monitor or a manual `pio` upload. To target a different port without editing
+  `platformio.ini`, set `TESSERA_PORT` (a COM port for USB, or an IP/`*.local`
+  hostname for the `tessera_ota` env) — see `scripts/select_port.py`.
 
 ## Project layout
 
 ```
-src/             main, display, touch, ui, ha_client, mdi_icons (generated font)
+src/             main, display, touch, ui, ha_client, ota, mdi_icons (generated font)
 include/         config.h.example (devices), secrets.h.example (credentials), lv_conf.h
 tools/           icon-font generation (@mdi/font + lv_font_conv)
+scripts/         select_port.py (TESSERA_PORT override for pio upload/monitor)
 setup_wizard.py  first-run credential wizard — writes include/secrets.h, flashes
+panels.py        multi-panel manager — register/identify/flash by name or MAC
 serial_read.py   serial-monitor helper (reads the boot log over USB)
 platformio.ini, partitions_16MB_ota.csv
 ```

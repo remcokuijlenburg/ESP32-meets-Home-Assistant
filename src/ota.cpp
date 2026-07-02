@@ -1,12 +1,17 @@
 #include <ArduinoOTA.h>
 #include <WiFi.h>
 #include "ota.h"
+#include "config.h"
 
-// ArduinoOTA pulls in mDNS, so the device also advertises as "tessera.local".
-// Upload via PlatformIO env :tessera_ota (espota), targeting the device IP or
-// tessera.local. No password on the home LAN; to require one, add
-// ArduinoOTA.setPassword("...") below (and --auth=... to upload_flags).
-static const char* OTA_HOSTNAME = "tessera";
+// ArduinoOTA pulls in mDNS, so the device also advertises as "<OTA_HOSTNAME>.local"
+// (set in config.h — give each panel a unique name if you run more than one, or
+// they'll collide on the same mDNS name). Upload via PlatformIO env :tessera_ota
+// (espota), targeting the device IP or that hostname. No password on the home
+// LAN; to require one, add ArduinoOTA.setPassword("...") below (and --auth=...
+// to upload_flags).
+#ifndef OTA_HOSTNAME
+#define OTA_HOSTNAME "tessera"
+#endif
 
 void ota_init() {
   ArduinoOTA.setHostname(OTA_HOSTNAME);
