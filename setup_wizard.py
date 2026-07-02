@@ -11,7 +11,10 @@ in code (ideally with an LLM — see the README "Adding devices" section).
 
 Why validate the token first: Home Assistant IP-bans a client after repeated
 failed auths. Confirming the token works from the PC keeps the panel from
-ban-looping on a bad token (see CLAUDE.md gotchas).
+ban-looping on a bad token (see the README's "Known setup notes" section).
+
+Running more than one panel? See panels.py instead — it wraps this same
+credential/validation flow per panel and can tell physical boards apart.
 
 Run it with the PlatformIO Python, which already has pyserial + platformio:
 

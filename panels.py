@@ -14,9 +14,9 @@ This script solves both:
     reads it via esptool and keeps a MAC -> profile-name map in
     panels/registry.json, so it can recognize which panel is connected.
 
-Everything under panels/ is gitignored except this script's docs in the
-README — profiles hold the same kind of per-device secrets/layout info as
-include/config.h and include/secrets.h already do.
+Everything under panels/ is gitignored — profiles hold the same kind of
+per-device secrets/layout info as include/config.h and include/secrets.h
+already do. The workflow itself is documented in the README, not in panels/.
 
 Commands:
     python panels.py list                 Show known panels and their MACs

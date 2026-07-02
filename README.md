@@ -109,7 +109,9 @@ pio run -e tessera_ota -t upload --upload-port <panel-ip>
 
 Find the IP in your router's device list (or the panel's serial log on first
 boot). The `upload_port` baked into `platformio.ini` is only a default —
-override it per panel with `--upload-port`.
+override it per panel with `--upload-port`. Managing more than one panel?
+`python panels.py flash <name> --ota` does this for you — see
+[Running multiple panels](#running-multiple-panels).
 
 On **Windows**, the host firewall must let PlatformIO's `espota` helper receive
 the panel's connection back, or the upload fails with *"No response from
@@ -127,7 +129,8 @@ one `(config.h, secrets.h)` pair straight — and telling the panels apart when
 one is plugged in for an update. `panels.py` handles both:
 
 ```sh
-python panels.py new              # register the connected board as a new panel
+python panels.py new kitchen      # set up the connected board as a new panel, named "kitchen"
+python panels.py new              # ...or get prompted for a name
 python panels.py flash            # auto-detects which panel is connected, syncs
                                    #   its files into include/, and reflashes it
 python panels.py flash kitchen    # or flash a specific one by name
@@ -135,6 +138,13 @@ python panels.py flash kitchen --ota   # ...over WiFi instead of USB
 python panels.py list             # show known panels and their MAC addresses
 python panels.py identify         # what panel is plugged in right now?
 ```
+
+Run it with the same PlatformIO Python used for `setup_wizard.py` (see
+[Setup](#setup) above) — it needs `pyserial` and `esptool`, which that
+interpreter already has. Every command also takes `--port` to skip
+auto-detection, and `flash` takes `--host` (override the OTA target) and
+`--no-confirm` (skip the post-flash serial check); run with `--help` for the
+full list.
 
 Each panel gets its own folder at `panels/<name>/config.h` + `secrets.h`
 (gitignored, same as `include/config.h`/`secrets.h`) and a unique
@@ -150,6 +160,11 @@ control. If you already have a single-panel setup (just `include/config.h` and
 `include/secrets.h`, no `panels/` folder yet), the first time you run `new` or
 `flash` it offers to adopt your existing setup as your first named panel.
 
+Once you're using `panels.py`, treat `panels/<name>/config.h` as the source of
+truth for that panel and edit it directly — `include/config.h` is just a
+staging copy of whichever panel you last synced with `new` or `flash`, and
+gets overwritten the next time you sync a different one.
+
 ## Working with an LLM (recommended)
 
 Tessera is built to be configured and extended with an AI coding assistant
@@ -162,8 +177,11 @@ code are deliberately self-describing for exactly this.
   setup wizard (which gathers your token and flashes the panel).
 - **Adding or changing devices** — paste your `config.h` and say *"add my garage
   light, entity `switch.garage`."* Every field (`label`, `entity_id`, `page`,
-  `on_pct`, `icon`) is commented and the available icons are listed, so the model
-  has what it needs to produce a correct `MOSAIC[]` row.
+  `on_pct`, `icon`, `on_kelvin`) is commented and the available icons are
+  listed, so the model has what it needs to produce a correct `MOSAIC[]` row.
+- **Running more than one panel** — paste `panels.py` alongside a description of
+  your panels ("a kitchen one and an office one, same WiFi/HA") and it can walk
+  you through `new`/`flash` for each.
 - **Modifying the firmware** — each source file carries a module-header comment
   describing its role and gotchas, so an assistant can orient quickly to make UI
   or behavior changes.
@@ -178,22 +196,29 @@ structured to make AI-assisted setup and extension fast and reliable.
 
 Tiles are defined in `include/config.h` as rows of the `MOSAIC[]` array. Adding a
 device that uses an existing icon needs no firmware changes — just a new row, a
-rebuild, and a flash. Each row has five fields:
+rebuild, and a flash. Each row has six fields:
 
 | Field | Meaning |
 |---|---|
 | `label` | Text shown under the icon (keep short — ~14 chars fits) |
 | `entity_id` | The Home Assistant entity, e.g. `light.kitchen`. Tapping the tile toggles it. |
 | `page` | Which screen the tile is on (0-based). Up to 9 tiles per page (3×3); swipe left/right to change pages. |
-| `on_pct` | `0` for a plain toggle. For a fan, a value `>0` makes "turn on" start at that % speed instead of 100% (e.g. `16.67` ≈ the lowest of 6 speeds). |
+| `on_pct` | `0` for a plain toggle. For a fan, a value `>0` makes "turn on" start at that % speed instead of 100% (e.g. `16.67` ≈ the lowest of 6 speeds). Ignored for non-fans. |
 | `icon` | An `ICON_*` name from the catalog at the top of `config.h`. |
+| `on_kelvin` | `0` for no change. For a tunable-white light, a value `>0` sets that color temperature (in Kelvin, e.g. `3000` for warm white) when turning on. Ignored for non-color-temp lights. |
+
+`on_kelvin` is the last field, so you can drop it entirely for a plain toggle —
+the compiler zero-fills anything left off the end. `icon` is required and comes
+*before* it, though, so don't skip `on_pct` while keeping `icon`; the fields are
+positional, not named.
 
 Example — add a garage light on the first page:
 
 ```c
 static const Tessera MOSAIC[] = {
   // ...existing tiles...
-  { "Garage", "switch.garage", 0, 0, ICON_LIGHTBULB },
+  { "Garage", "switch.garage", 0, 0, ICON_LIGHTBULB },          // plain toggle (on_kelvin omitted)
+  { "Garage", "light.garage", 0, 0, ICON_LIGHTBULB, 3000 },     // a tunable-white light, warm on
 };
 ```
 
@@ -243,6 +268,12 @@ To add a glyph that isn't in the catalog:
   a dependency install can't overwrite it. See `lib/TAMC_GT911/PATCH.md`.
 - Serial output requires `ARDUINO_USB_CDC_ON_BOOT=0` (already set in `platformio.ini`)
   so logging goes to the CH340 UART rather than native USB-CDC.
+- **HA IP-bans repeated failed logins.** If the panel retries a wrong token, Home
+  Assistant will ban its IP and every request — including a *correct* token
+  afterward — gets rejected until the ban clears. This is why the wizards
+  validate your token **from the PC** before ever flashing it to the panel. If
+  you do get banned: clear the entry in HA's `ip_bans.yaml` and restart Home
+  Assistant.
 - **The serial port is hardcoded to `COM7`** in `serial_read.py` and `platformio.ini`
   (`monitor_port`/`upload_port`). `setup_wizard.py` and `panels.py` both
   auto-detect the port when they flash, so this only matters for the serial
@@ -257,6 +288,7 @@ src/             main, display, touch, ui, ha_client, ota, mdi_icons (generated 
 include/         config.h.example (devices), secrets.h.example (credentials), lv_conf.h
 tools/           icon-font generation (@mdi/font + lv_font_conv)
 scripts/         select_port.py (TESSERA_PORT override for pio upload/monitor)
+panels/          per-panel profiles + registry.json (gitignored; created by panels.py)
 setup_wizard.py  first-run credential wizard — writes include/secrets.h, flashes
 panels.py        multi-panel manager — register/identify/flash by name or MAC
 serial_read.py   serial-monitor helper (reads the boot log over USB)
