@@ -131,6 +131,8 @@ one is plugged in for an update. `panels.py` handles both:
 ```sh
 python panels.py new kitchen      # set up the connected board as a new panel, named "kitchen"
 python panels.py new              # ...or get prompted for a name
+python panels.py register office  # link the connected board to an EXISTING
+                                   #   profile that isn't registered to a MAC yet
 python panels.py flash            # auto-detects which panel is connected, syncs
                                    #   its files into include/, and reflashes it
 python panels.py flash kitchen    # or flash a specific one by name
@@ -158,7 +160,9 @@ an existing panel — handy since most panels in one house share the same
 network and Home Assistant instance and only differ in which devices they
 control. If you already have a single-panel setup (just `include/config.h` and
 `include/secrets.h`, no `panels/` folder yet), the first time you run `new` or
-`flash` it offers to adopt your existing setup as your first named panel.
+`flash` it offers to adopt your existing setup as your first named panel — if
+that board wasn't plugged in at the time (so its MAC couldn't be recorded),
+plug it in later and run `python panels.py register <name>` to link it.
 
 Once you're using `panels.py`, treat `panels/<name>/config.h` as the source of
 truth for that panel and edit it directly — `include/config.h` is just a

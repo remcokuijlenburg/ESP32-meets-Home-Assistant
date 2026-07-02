@@ -22,6 +22,9 @@ Commands:
     python panels.py list                 Show known panels and their MACs
     python panels.py identify             What panel is plugged in right now?
     python panels.py new [name]           Set up the connected board as a new panel
+    python panels.py register [name]      Link the connected board to an EXISTING
+                                           profile (e.g. one adopted before this
+                                           board happened to be plugged in)
     python panels.py flash [name]         Sync + build + flash a panel over USB
     python panels.py flash NAME --ota     ...or over WiFi (ArduinoOTA)
 
@@ -217,6 +220,49 @@ def cmd_list(args):
     return 0
 
 
+def cmd_register(args):
+    """Link the connected board's MAC to an EXISTING profile, without touching
+    its config.h/secrets.h. For the case `new` can't handle: a profile that
+    already exists (e.g. adopted from a legacy include/ setup) but whose board
+    wasn't plugged in at the time, so it was never added to the registry."""
+    profiles = list_profiles()
+    name = args.name
+    if not name:
+        if not profiles:
+            print("No panel profiles yet. Run: python panels.py new")
+            return 1
+        print("\n  Link the connected board to which panel?")
+        for i, p in enumerate(profiles, 1):
+            print(f"    {i}. {p}")
+        choice = input(f"  Choice [1-{len(profiles)}]: ").strip()
+        if not (choice.isdigit() and 1 <= int(choice) <= len(profiles)):
+            print("  Aborted.")
+            return 1
+        name = profiles[int(choice) - 1]
+    if name not in profiles:
+        known = ", ".join(profiles) or "(none yet)"
+        print(f"  No profile named '{name}'. Known panels: {known}. Use `new` to create one.")
+        return 1
+
+    port = args.port or sw.detect_serial_port()
+    mac = read_chip_mac(port)
+    if not mac:
+        return 1
+
+    reg = load_registry()
+    existing = reg.get(mac)
+    if existing and existing != name:
+        if input(f"  This board is currently registered as '{existing}'. "
+                 f"Re-register it as '{name}' instead? [y/N]: ").strip().lower() != "y":
+            print("  Aborted.")
+            return 1
+
+    reg[mac] = name
+    save_registry(reg)
+    print(f"  Registered {mac} -> '{name}'.")
+    return 0
+
+
 def cmd_identify(args):
     port = args.port or sw.detect_serial_port()
     if not port:
@@ -380,6 +426,12 @@ def build_parser():
     sp.add_argument("name", nargs="?", help="Panel name (prompted if omitted)")
     sp.add_argument("--port")
     sp.set_defaults(func=cmd_new)
+
+    sp = sub.add_parser("register", help="Link the connected board to an EXISTING profile "
+                                          "(e.g. one adopted before this board was plugged in)")
+    sp.add_argument("name", nargs="?", help="Existing panel name (prompted if omitted)")
+    sp.add_argument("--port")
+    sp.set_defaults(func=cmd_register)
 
     sp = sub.add_parser("flash", help="Sync a panel's profile into include/, then build + flash it")
     sp.add_argument("name", nargs="?", help="Panel name (auto-detected from the connected board if omitted)")
