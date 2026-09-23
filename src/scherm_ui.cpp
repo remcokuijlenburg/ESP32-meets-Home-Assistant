@@ -15,6 +15,7 @@ lv_obj_t * lbl_temp_home = nullptr;
 lv_obj_t * lbl_doel_home = nullptr;
 lv_obj_t * slider_home = nullptr;
 lv_obj_t * lbl_weather = nullptr;
+lv_obj_t * lbl_flame_home = nullptr;
 
 // ==========================================
 // UI INITIALISATIE
@@ -50,11 +51,25 @@ void ui_set_indoor_temp(int deg) {
     }
 }
 
-void ui_set_outdoor_temp(int deg) {
+void ui_set_outdoor_temp(float deg) {
     if (lbl_weather) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%d °C", deg);
+        char buf[24];
+        snprintf(buf, sizeof(buf), LV_SYMBOL_IMAGE " %.1f°C", deg);
         lv_label_set_text(lbl_weather, buf);
+    }
+}
+
+// Toont/verbergt de oranje vlam in de topbar op basis van
+// de OTGW-vlamsensor (ketel brandt voor cv of warm water).
+void ui_set_boiler_flame(bool active) {
+    if (!lbl_flame_home) {
+        return;
+    }
+
+    if (active) {
+        lv_obj_clear_flag(lbl_flame_home, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(lbl_flame_home, LV_OBJ_FLAG_HIDDEN);
     }
 }
 

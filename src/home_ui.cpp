@@ -68,25 +68,58 @@ sntp_clock_set_label(lbl_date);
         0
     );
 
-    lv_obj_t * lbl_weather = lv_label_create(top_box);
+    lv_obj_t * lbl_temp_topbar = lv_label_create(top_box);
 
     lv_label_set_text(
-        lbl_weather,
-        LV_SYMBOL_IMAGE " 12°C"
+        lbl_temp_topbar,
+        LV_SYMBOL_IMAGE " --.-°C"
     );
 
     lv_obj_set_style_text_color(
-        lbl_weather,
+        lbl_temp_topbar,
         lv_color_hex(0xCCCCCC),
         0
     );
 
     lv_obj_align(
-        lbl_weather,
+        lbl_temp_topbar,
         LV_ALIGN_RIGHT_MID,
         -10,
         0
     );
+
+    // Koppel aan globale pointer zodat HA sync
+    // (ui_set_outdoor_temp) dit label kan bijwerken
+    lbl_weather = lbl_temp_topbar;
+
+    // Oranje vlam: zichtbaar zolang de ketel brandt
+    // (HA sync via ui_set_boiler_flame)
+    lv_obj_t * lbl_flame = lv_label_create(top_box);
+
+    lv_obj_set_style_text_font(
+        lbl_flame,
+        &Custom_Icons_32,
+        0
+    );
+
+    lv_label_set_text(lbl_flame, ICON_FIRE);
+
+    lv_obj_set_style_text_color(
+        lbl_flame,
+        lv_color_hex(0xFF6600),
+        0
+    );
+
+    lv_obj_align(
+        lbl_flame,
+        LV_ALIGN_RIGHT_MID,
+        -95,
+        0
+    );
+
+    lv_obj_add_flag(lbl_flame, LV_OBJ_FLAG_HIDDEN);
+
+    lbl_flame_home = lbl_flame;
 
     // =====================================================
     // MIDDEN (KLIMAAT WIDGET)

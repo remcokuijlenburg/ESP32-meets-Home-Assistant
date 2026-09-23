@@ -175,6 +175,32 @@ static float ha_get_float_attribute(
 }
 
 // ----
+// Converteert een state-string naar een float.
+// Vervangt komma door punt (NL locale).
+// Geeft 'fallback' terug als de state leeg of
+// "unavailable" / "unknown" is.
+// ----
+
+static float state_to_float(
+    const String& state,
+    float fallback = 0.0f
+)
+{
+    if (state.length() == 0       ||
+        state == "unavailable"    ||
+        state == "unknown"        ||
+        state == "none")
+    {
+        return fallback;
+    }
+
+    String s = state;
+    s.replace(",", ".");
+
+    return s.toFloat();
+}
+
+// ----
 // Controleert of minstens één entiteit uit de lijst
 // de state "on" heeft. Stopt zodra de eerste "on" gevonden
 // is (short-circuit).
@@ -379,6 +405,31 @@ static void sync_climate()
         current_temp,
         target_temp
     );
+
+    // ----
+    // UI bijwerken — topbar temperatuurwidget
+    // (Philips SML002 sensor)
+    // ----
+
+    String topbar_temp_raw =
+        ha_get_state(HA_SENSOR_TOPBAR_TEMP);
+
+    float topbar_temp =
+        state_to_float(topbar_temp_raw, 0.0f);
+
+    Serial.printf(
+        "[HA] Topbar temp (Philips SML002): %.1f °C\n",
+        topbar_temp
+    );
+
+    ui_set_outdoor_temp(topbar_temp);
+
+    // ----
+    // UI bijwerken — oranje vlam in topbar
+    // (ketel brandt: cv of warm water)
+    // ----
+
+    ui_set_boiler_flame(heating);
 }
 
 // ====

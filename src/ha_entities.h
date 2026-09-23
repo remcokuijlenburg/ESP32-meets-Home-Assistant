@@ -53,6 +53,10 @@
 #define HA_SENSOR_WOONKAMER_TEMP \
     "sensor.temperatuur_woonkamer_temperatuur"
 
+// Temperatuurwidget rechtsboven op de voorpagina (Philips SML002 sensor)
+#define HA_SENSOR_TOPBAR_TEMP \
+    "sensor.philips_sml002_temperatuur"
+
 // OTGW: kamertemperatuur zoals de thermostaat die meet
 #define HA_OTGW_ROOM_TEMP \
     "sensor.opentherm_gateway_otgw_otgw_room_temperature"

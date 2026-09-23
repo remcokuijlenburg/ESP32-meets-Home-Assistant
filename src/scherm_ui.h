@@ -29,6 +29,7 @@ extern lv_obj_t * lbl_temp_home;
 extern lv_obj_t * lbl_doel_home;
 extern lv_obj_t * slider_home;
 extern lv_obj_t * lbl_weather;
+extern lv_obj_t * lbl_flame_home;
 
 // Custom fonts & iconen
 LV_FONT_DECLARE(Custom_Icons_32);
@@ -47,7 +48,8 @@ void build_music_screen(lv_obj_t * parent);
 // Home Assistant data setters
 void ui_set_indoor_temp(int deg);
 void ui_set_home_thermostat(float current_temp, float target_temp);
-void ui_set_outdoor_temp(int deg);
+void ui_set_outdoor_temp(float deg);
+void ui_set_boiler_flame(bool active);
 void ui_update_tile_state(int idx, const char* state);
 void ui_update_tile_value(int idx, const char* val);
 void ui_update_thermostat(ThermoState *s);
