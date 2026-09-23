@@ -70,11 +70,16 @@ void ui_set_light_state(
 );
 
 // Klimaat
+// is_on: hvac_mode van de entiteit is niet "off" (kachel/thermostaat
+// staat aan). heating: er wordt op dit moment daadwerkelijk warmte
+// geleverd (vlam/element actief) — dit kan JA zijn terwijl is_on ook
+// JA is, maar niet andersom.
 void ui_set_climate_state(
     const char* room_name,
     float current_temp,
     float target_temp,
-    bool heating
+    bool heating,
+    bool is_on
 );
 
 // Muziek

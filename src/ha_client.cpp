@@ -431,6 +431,14 @@ static void sync_climate()
     );
 
     // ----
+    // Aan/uit-modus:
+    // hvac_mode ("off" = uit, anders aan)
+    // ----
+
+    bool is_on =
+        ha_get_state(HA_CLIMATE_WOONKAMER) != "off";
+
+    // ----
     // UI bijwerken — klimaat scherm
     // ----
 
@@ -438,7 +446,8 @@ static void sync_climate()
         "Woonkamer",
         current_temp,
         target_temp,
-        heating
+        heating,
+        is_on
     );
 
     // ----
@@ -475,25 +484,30 @@ static void sync_climate()
         tk_target = 20.0f;
     }
 
-    bool tk_heating =
-        ha_get_string_attribute(
-            HA_CLIMATE_TUINKANTOOR,
-            "hvac_action",
-            ""
-        ) == "heating";
+    // Vonroc is een elektrische kachel zonder hvac_action-attribuut:
+    // "verwarmen" en "aan" zijn hier hetzelfde (geen aparte modulatie
+    // zoals bij de CV-ketel van de woonkamer).
+
+    String tk_mode = ha_get_state(HA_CLIMATE_TUINKANTOOR);
+
+    bool tk_is_on = (tk_mode != "off" && tk_mode.length() > 0 &&
+                     tk_mode != "unavailable" && tk_mode != "unknown");
+
+    bool tk_heating = tk_is_on;
 
     Serial.printf(
-        "[HA] Tuinkantoor: %.1f -> %.1f °C, verwarmen: %s\n",
+        "[HA] Tuinkantoor: %.1f -> %.1f °C, aan: %s\n",
         tk_current,
         tk_target,
-        tk_heating ? "JA" : "NEE"
+        tk_is_on ? "JA" : "NEE"
     );
 
     ui_set_climate_state(
         "Tuinkantoor",
         tk_current,
         tk_target,
-        tk_heating
+        tk_heating,
+        tk_is_on
     );
 
     // ----

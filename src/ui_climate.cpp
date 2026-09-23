@@ -17,13 +17,14 @@ struct ClimateRoom {
     float current_temp;
     float target_temp;
     bool is_heating;
+    bool is_on;
 };
 
 #define NUM_CLIMATE_ROOMS 2
 
 static ClimateRoom climate_rooms[NUM_CLIMATE_ROOMS] = {
-    {"Woonkamer",   HA_CLIMATE_WOONKAMER,   20.0f, 20.0f, false},
-    {"Tuinkantoor", HA_CLIMATE_TUINKANTOOR, 20.0f, 20.0f, false}
+    {"Woonkamer",   HA_CLIMATE_WOONKAMER,   20.0f, 20.0f, false, true},
+    {"Tuinkantoor", HA_CLIMATE_TUINKANTOOR, 20.0f, 20.0f, false, true}
 };
 
 // ==========================================
@@ -63,6 +64,8 @@ static lv_obj_t* lbl_detail_title   = NULL;
 static lv_obj_t* lbl_detail_current = NULL;
 static lv_obj_t* lbl_detail_target  = NULL;
 static lv_obj_t* slider_detail      = NULL;
+static lv_obj_t* switch_detail      = NULL;
+static lv_obj_t* lbl_switch_detail  = NULL;
 
 // ==========================================
 // FUNCTIEPROTOTYPES
@@ -168,6 +171,8 @@ static void detail_slider_released_cb(lv_event_t* e)
 
     float new_target = value / 10.0f;
 
+    ClimateRoom& room = climate_rooms[active_room_index];
+
     char extra[32];
 
     snprintf(
@@ -180,9 +185,69 @@ static void detail_slider_released_cb(lv_event_t* e)
     ha_call_service(
         "climate",
         "set_temperature",
-        climate_rooms[active_room_index].entity_id,
+        room.entity_id,
         extra
     );
+
+    // Een temperatuur instellen betekent dat je wilt verwarmen —
+    // zet de kachel/thermostaat daarom ook aan als hij uit stond.
+    // (Vonroc-kachel in het Tuinkantoor staat vaak uit, en negeert
+    // set_temperature dan stilzwijgend.)
+
+    if (!room.is_on) {
+
+        ha_call_service(
+            "climate",
+            "set_hvac_mode",
+            room.entity_id,
+            "\"hvac_mode\":\"heat\""
+        );
+
+        room.is_on = true;
+
+        if (switch_detail != NULL) {
+            lv_obj_add_state(switch_detail, LV_STATE_CHECKED);
+        }
+
+        update_climate_tile(active_room_index);
+    }
+}
+
+// ==========================================
+// AAN/UIT-SCHAKELAAR CALLBACK
+// ==========================================
+
+static void detail_switch_event_cb(lv_event_t* e)
+{
+    lv_obj_t* sw = lv_event_get_target(e);
+
+    bool checked = lv_obj_has_state(sw, LV_STATE_CHECKED);
+
+    ClimateRoom& room = climate_rooms[active_room_index];
+
+    room.is_on = checked;
+
+    ha_call_service(
+        "climate",
+        "set_hvac_mode",
+        room.entity_id,
+        checked ? "\"hvac_mode\":\"heat\"" : "\"hvac_mode\":\"off\""
+    );
+
+    if (lbl_switch_detail != NULL) {
+        lv_label_set_text(lbl_switch_detail, checked ? "Aan" : "Uit");
+    }
+
+    if (lbl_detail_target != NULL) {
+
+        if (checked) {
+            lv_label_set_text_fmt(lbl_detail_target, "Doel: %.1f°C", room.target_temp);
+        } else {
+            lv_label_set_text(lbl_detail_target, "Uit");
+        }
+    }
+
+    update_climate_tile(active_room_index);
 }
 
 // ==========================================
@@ -258,11 +323,35 @@ static void load_climate_detail(int room_idx)
 
     if (lbl_detail_target != NULL) {
 
-        lv_label_set_text_fmt(
-            lbl_detail_target,
-            "Doel: %.1f°C",
-            room.target_temp
-        );
+        if (room.is_on) {
+
+            lv_label_set_text_fmt(
+                lbl_detail_target,
+                "Doel: %.1f°C",
+                room.target_temp
+            );
+
+        } else {
+
+            lv_label_set_text(lbl_detail_target, "Uit");
+        }
+    }
+
+    // ----------------------------------------
+    // Aan/uit-schakelaar
+    // ----------------------------------------
+
+    if (switch_detail != NULL) {
+
+        if (room.is_on) {
+            lv_obj_add_state(switch_detail, LV_STATE_CHECKED);
+        } else {
+            lv_obj_clear_state(switch_detail, LV_STATE_CHECKED);
+        }
+    }
+
+    if (lbl_switch_detail != NULL) {
+        lv_label_set_text(lbl_switch_detail, room.is_on ? "Aan" : "Uit");
     }
 
     // ----------------------------------------
@@ -346,11 +435,21 @@ static void update_climate_tile(int room_idx)
 
     if (climate_target_labels[room_idx] != NULL) {
 
-        lv_label_set_text_fmt(
-            climate_target_labels[room_idx],
-            "Doel: %.1f°C",
-            climate_rooms[room_idx].target_temp
-        );
+        if (climate_rooms[room_idx].is_on) {
+
+            lv_label_set_text_fmt(
+                climate_target_labels[room_idx],
+                "Doel: %.1f°C",
+                climate_rooms[room_idx].target_temp
+            );
+
+        } else {
+
+            lv_label_set_text(
+                climate_target_labels[room_idx],
+                "Uit"
+            );
+        }
     }
 
     // ----------------------------------------
@@ -426,7 +525,8 @@ void ui_set_climate_state(
     const char* room_name,
     float current_temp,
     float target_temp,
-    bool heating
+    bool heating,
+    bool is_on
 )
 {
     Serial.print(
@@ -472,6 +572,9 @@ void ui_set_climate_state(
 
             climate_rooms[i].is_heating =
                 heating;
+
+            climate_rooms[i].is_on =
+                is_on;
 
             Serial.print(
                 "[UI] Nieuwe huidige temperatuur: "
@@ -838,11 +941,18 @@ void build_climate_overview(lv_obj_t* parent)
         climate_target_labels[i] =
             lbl_tgt;
 
-        lv_label_set_text_fmt(
-            lbl_tgt,
-            "Doel: %.1f°C",
-            climate_rooms[i].target_temp
-        );
+        if (climate_rooms[i].is_on) {
+
+            lv_label_set_text_fmt(
+                lbl_tgt,
+                "Doel: %.1f°C",
+                climate_rooms[i].target_temp
+            );
+
+        } else {
+
+            lv_label_set_text(lbl_tgt, "Uit");
+        }
 
         lv_obj_set_style_text_color(
             lbl_tgt,
@@ -1068,6 +1178,55 @@ void build_climate_detail(lv_obj_t* parent)
         LV_ALIGN_CENTER,
         0,
         10
+    );
+
+    // ----------------------------------------
+    // Aan/uit-schakelaar
+    // ----------------------------------------
+
+    switch_detail =
+        lv_switch_create(cont);
+
+    lv_obj_align(
+        switch_detail,
+        LV_ALIGN_CENTER,
+        70,
+        60
+    );
+
+    lv_obj_set_style_bg_color(
+        switch_detail,
+        lv_color_hex(0xFF6600),
+        LV_PART_INDICATOR | LV_STATE_CHECKED
+    );
+
+    lv_obj_add_event_cb(
+        switch_detail,
+        detail_switch_event_cb,
+        LV_EVENT_VALUE_CHANGED,
+        NULL
+    );
+
+    lbl_switch_detail =
+        lv_label_create(cont);
+
+    lv_label_set_text(
+        lbl_switch_detail,
+        "Aan"
+    );
+
+    lv_obj_set_style_text_color(
+        lbl_switch_detail,
+        lv_color_hex(0xCCCCCC),
+        0
+    );
+
+    lv_obj_align_to(
+        lbl_switch_detail,
+        switch_detail,
+        LV_ALIGN_OUT_LEFT_MID,
+        -10,
+        0
     );
 
     // ----------------------------------------

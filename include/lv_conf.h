@@ -31,6 +31,7 @@
 #define LV_USE_LINE     1
 #define LV_USE_ARC      1
 #define LV_USE_SLIDER   1
+#define LV_USE_SWITCH   1
 #define LV_USE_TILEVIEW 1
 
 // Fonts
