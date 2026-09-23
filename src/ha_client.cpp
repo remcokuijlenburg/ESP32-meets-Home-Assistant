@@ -535,7 +535,6 @@ struct HaMediaPlayerRaw {
     int volume_pct;       // 0-100, -1 = onbekend
     String title;
     String artist;
-    String picture;        // relatief pad, "" = geen hoesje
     bool grouped;
     String src0, src1, src2;
 };
@@ -600,10 +599,6 @@ static HaMediaPlayerRaw ha_get_media_player(const char* entity_id)
         r.artist = attrs["media_artist"].as<String>();
     }
 
-    if (!attrs["entity_picture"].isNull()) {
-        r.picture = attrs["entity_picture"].as<String>();
-    }
-
     JsonArray group_members = attrs["group_members"];
     if (!group_members.isNull() && group_members.size() > 1) {
         r.grouped = true;
@@ -618,88 +613,6 @@ static HaMediaPlayerRaw ha_get_media_player(const char* entity_id)
 
     return r;
 }
-
-// Downloadt een albumhoesje (JPEG) van een relatief HA-pad naar 'buf'.
-// Geeft het aantal gelezen bytes terug, of 0 bij een fout / te groot bestand.
-static size_t ha_fetch_image(const String& picture_path, uint8_t* buf, size_t buf_size)
-{
-    if (picture_path.length() == 0) {
-        return 0;
-    }
-
-    HTTPClient http;
-
-    String url =
-        "http://" + String(HA_URL) +
-        ":" + String(HA_PORT) +
-        picture_path;
-
-    http.begin(url);
-    http.addHeader("Authorization", "Bearer " + String(HA_TOKEN));
-
-    int httpCode = http.GET();
-
-    if (httpCode != 200) {
-        Serial.printf("[HA] Albumhoesje ophalen mislukt (HTTP %d)\n", httpCode);
-        http.end();
-        return 0;
-    }
-
-    int content_len = http.getSize();
-
-    if (content_len > (int) buf_size) {
-        Serial.printf(
-            "[HA] Albumhoesje te groot (%d bytes, buffer %d)\n",
-            content_len,
-            (int) buf_size
-        );
-        http.end();
-        return 0;
-    }
-
-    WiFiClient* stream = http.getStreamPtr();
-
-    size_t read_total = 0;
-    uint32_t start = millis();
-
-    while (http.connected() && read_total < buf_size && (millis() - start) < 4000) {
-
-        size_t avail = stream->available();
-
-        if (avail == 0) {
-            delay(5);
-            continue;
-        }
-
-        size_t to_read = avail;
-        if (to_read > (buf_size - read_total)) {
-            to_read = buf_size - read_total;
-        }
-
-        int n = stream->readBytes(buf + read_total, to_read);
-        if (n <= 0) {
-            break;
-        }
-
-        read_total += n;
-
-        if (content_len > 0 && (int) read_total >= content_len) {
-            break;
-        }
-    }
-
-    http.end();
-
-    return read_total;
-}
-
-// Cache van de laatst opgehaalde entity_picture-URL per speler, zodat
-// we een ongewijzigd albumhoesje niet elke poll opnieuw downloaden.
-static String last_picture_url[NUM_MUSIC_PLAYERS];
-
-// Herbruikbare buffer voor het downloaden van albumhoesjes (JPEG).
-#define ALBUM_ART_BUF_SIZE 24576
-static uint8_t album_art_buf[ALBUM_ART_BUF_SIZE];
 
 static void sync_music()
 {
@@ -730,23 +643,6 @@ static void sync_music()
             p.src1.c_str(),
             p.src2.c_str()
         );
-
-        // Albumhoesje: alleen opnieuw downloaden als de URL gewijzigd is
-        if (p.picture != last_picture_url[i]) {
-
-            last_picture_url[i] = p.picture;
-
-            if (p.picture.length() == 0) {
-                ui_set_music_picture(i, nullptr, 0);
-            } else {
-                size_t len = ha_fetch_image(p.picture, album_art_buf, ALBUM_ART_BUF_SIZE);
-                if (len > 0) {
-                    ui_set_music_picture(i, album_art_buf, len);
-                } else {
-                    ui_set_music_picture(i, nullptr, 0);
-                }
-            }
-        }
     }
 }
 

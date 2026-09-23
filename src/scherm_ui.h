@@ -94,11 +94,4 @@ void ui_set_music_player(
     const char* src2
 );
 
-// Werkt het albumhoesje bij. jpeg_data/len leeg (len==0) => toon fallback icoon.
-void ui_set_music_picture(
-    int idx,
-    const uint8_t* jpeg_data,
-    size_t len
-);
-
 #endif // SCHERM_UI_H

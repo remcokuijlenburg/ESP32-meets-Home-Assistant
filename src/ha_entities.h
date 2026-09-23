@@ -113,7 +113,7 @@ struct MusicPlayerConfig {
 
 static const MusicPlayerConfig MUSIC_PLAYERS[NUM_MUSIC_PLAYERS] = {
     { "Woonkamer",   HA_SONOS_WOONKAMER },
-    { "Tuinkantoor", HA_SONOS_KANTOOR   }
+    { "Boaz",        HA_SONOS_KANTOOR   }
 };
 
 // ====

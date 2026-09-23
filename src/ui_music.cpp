@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include <TJpg_Decoder.h>
 
 #include "scherm_ui.h"
 #include "ui_icons.h"
@@ -40,7 +39,6 @@ struct SonosPlayer {
     lv_obj_t* card;
     lv_obj_t* lbl_title;
     lv_obj_t* lbl_artist;
-    lv_obj_t* lbl_status_icon;
     lv_obj_t* lbl_playpause_icon;
     lv_obj_t* slider_volume;
     lv_obj_t* lbl_volume_pct;
@@ -48,9 +46,7 @@ struct SonosPlayer {
     lv_obj_t* lbl_group;
     lv_obj_t* btn_preset[3];
     lv_obj_t* lbl_preset[3];
-    lv_obj_t* canvas_art;
     lv_obj_t* lbl_art_fallback;
-    lv_color_t* art_buf;
 };
 
 static SonosPlayer players[NUM_MUSIC_PLAYERS];
@@ -62,48 +58,6 @@ struct PresetCtx {
 };
 
 static PresetCtx preset_ctx[NUM_MUSIC_PLAYERS][3];
-
-// ============================================================
-// ALBUMHOES DECODEREN (TJpg_Decoder -> LVGL canvas buffer)
-// ============================================================
-
-static lv_color_t* g_decode_target = nullptr;
-
-static bool jpg_output_cb(
-    int16_t x,
-    int16_t y,
-    uint16_t w,
-    uint16_t h,
-    uint16_t* bitmap
-)
-{
-    if (g_decode_target == nullptr) {
-        return false;
-    }
-
-    for (uint16_t row = 0; row < h; row++) {
-
-        int16_t py = y + row;
-
-        if (py < 0 || py >= ART_SIZE) {
-            continue;
-        }
-
-        for (uint16_t col = 0; col < w; col++) {
-
-            int16_t px = x + col;
-
-            if (px < 0 || px >= ART_SIZE) {
-                continue;
-            }
-
-            g_decode_target[py * ART_SIZE + px].full =
-                bitmap[row * w + col];
-        }
-    }
-
-    return true;
-}
 
 // ============================================================
 // KAART BIJWERKEN
@@ -130,24 +84,6 @@ static void update_player_card(int idx)
         lv_label_set_text(
             p.lbl_artist,
             p.artist[0] != '\0' ? p.artist : ""
-        );
-    }
-
-    // Status-icoon (rechtsboven op de kaart)
-
-    if (p.lbl_status_icon != nullptr) {
-
-        lv_label_set_text(
-            p.lbl_status_icon,
-            p.is_playing ? LV_SYMBOL_PLAY : LV_SYMBOL_PAUSE
-        );
-
-        lv_obj_set_style_text_color(
-            p.lbl_status_icon,
-            p.is_playing
-                ? lv_color_hex(0x00CC66)
-                : lv_color_hex(0xAAAAAA),
-            0
         );
     }
 
@@ -264,55 +200,6 @@ void ui_set_music_player(
     copy_truncated(p.sources[2], sizeof(p.sources[2]), src2);
 
     update_player_card(idx);
-}
-
-void ui_set_music_picture(
-    int idx,
-    const uint8_t* jpeg_data,
-    size_t len
-)
-{
-    if (idx < 0 || idx >= NUM_MUSIC_PLAYERS) {
-        return;
-    }
-
-    SonosPlayer& p = players[idx];
-
-    if (p.canvas_art == nullptr || p.art_buf == nullptr) {
-        return;
-    }
-
-    if (jpeg_data == nullptr || len == 0) {
-        // Geen albumhoes: canvas donker maken, fallback-icoon tonen
-        lv_canvas_fill_bg(p.canvas_art, lv_color_hex(0x333333), LV_OPA_COVER);
-
-        if (p.lbl_art_fallback != nullptr) {
-            lv_obj_clear_flag(p.lbl_art_fallback, LV_OBJ_FLAG_HIDDEN);
-        }
-
-        lv_obj_invalidate(p.canvas_art);
-        return;
-    }
-
-    lv_canvas_fill_bg(p.canvas_art, lv_color_hex(0x333333), LV_OPA_COVER);
-
-    g_decode_target = p.art_buf;
-
-    TJpgDec.setJpgScale(4);
-    TJpgDec.setSwapBytes(false);
-    TJpgDec.setCallback(jpg_output_cb);
-
-    bool ok = (TJpgDec.drawJpg(0, 0, jpeg_data, len) == 0);
-
-    g_decode_target = nullptr;
-
-    if (ok && p.lbl_art_fallback != nullptr) {
-        lv_obj_add_flag(p.lbl_art_fallback, LV_OBJ_FLAG_HIDDEN);
-    } else if (!ok && p.lbl_art_fallback != nullptr) {
-        lv_obj_clear_flag(p.lbl_art_fallback, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    lv_obj_invalidate(p.canvas_art);
 }
 
 // ============================================================
@@ -530,38 +417,22 @@ void build_music_screen(lv_obj_t * parent)
         lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
         p.card = card;
 
-        // Albumhoes (canvas) + fallback-icoon
+        // Decoratief muziek-icoon (geen albumhoes: te traag door
+        // netwerk-download + JPEG-decode elke poll, dus bewust weggelaten)
 
-        lv_obj_t * canvas = lv_canvas_create(card);
+        lv_obj_t * art_box = lv_obj_create(card);
+        lv_obj_set_size(art_box, ART_SIZE, ART_SIZE);
+        lv_obj_align(art_box, LV_ALIGN_TOP_LEFT, 14, 14);
+        lv_obj_set_style_bg_color(art_box, lv_color_hex(0x333333), 0);
+        lv_obj_set_style_border_width(art_box, 0, 0);
+        lv_obj_set_style_radius(art_box, 8, 0);
+        lv_obj_clear_flag(art_box, LV_OBJ_FLAG_SCROLLABLE);
 
-        size_t buf_bytes = LV_CANVAS_BUF_SIZE_TRUE_COLOR(ART_SIZE, ART_SIZE);
-
-        p.art_buf = (lv_color_t*)heap_caps_malloc(
-            buf_bytes,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT
-        );
-
-        if (p.art_buf != nullptr) {
-
-            lv_canvas_set_buffer(
-                canvas,
-                p.art_buf,
-                ART_SIZE,
-                ART_SIZE,
-                LV_IMG_CF_TRUE_COLOR
-            );
-
-            lv_canvas_fill_bg(canvas, lv_color_hex(0x333333), LV_OPA_COVER);
-        }
-
-        lv_obj_align(canvas, LV_ALIGN_TOP_LEFT, 14, 14);
-        p.canvas_art = canvas;
-
-        lv_obj_t * lbl_fallback = lv_label_create(card);
+        lv_obj_t * lbl_fallback = lv_label_create(art_box);
         lv_label_set_text(lbl_fallback, LV_SYMBOL_AUDIO);
         lv_obj_set_style_text_font(lbl_fallback, &lv_font_montserrat_20, 0);
         lv_obj_set_style_text_color(lbl_fallback, lv_color_hex(0x888888), 0);
-        lv_obj_align(lbl_fallback, LV_ALIGN_TOP_LEFT, 14 + ART_SIZE / 2 - 8, 14 + ART_SIZE / 2 - 10);
+        lv_obj_center(lbl_fallback);
         p.lbl_art_fallback = lbl_fallback;
 
         // Naam (kamer)
@@ -571,12 +442,6 @@ void build_music_screen(lv_obj_t * parent)
         lv_obj_set_style_text_font(lbl_name, &lv_font_montserrat_18, 0);
         lv_obj_set_style_text_color(lbl_name, lv_color_hex(0xFFFFFF), 0);
         lv_obj_align(lbl_name, LV_ALIGN_TOP_LEFT, 14 + ART_SIZE + 14, 12);
-
-        // Status-icoon rechtsboven
-
-        p.lbl_status_icon = lv_label_create(card);
-        lv_obj_set_style_text_font(p.lbl_status_icon, &lv_font_montserrat_20, 0);
-        lv_obj_align(p.lbl_status_icon, LV_ALIGN_TOP_RIGHT, -14, 12);
 
         // Titel / artiest
 
@@ -695,6 +560,5 @@ void build_music_screen(lv_obj_t * parent)
         // Initiële status toepassen (alles nog onbekend totdat ha_client sync't)
 
         update_player_card(i);
-        ui_set_music_picture(i, nullptr, 0);
     }
 }
