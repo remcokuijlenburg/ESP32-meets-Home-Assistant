@@ -94,7 +94,27 @@
 // ====
 
 #define HA_SONOS_WOONKAMER      "media_player.woonkamer"
-#define HA_SONOS_KANTOOR        "media_player.kantoor"
+#define HA_SONOS_KANTOOR        "media_player.kantoor"   // Tuinkantoor
+
+// Eén centrale lijst van muziekspelers: ha_client.cpp (sync) en
+// ui_music.cpp (scherm-opbouw) lezen allebei uit deze tabel, zodat
+// een nieuwe speaker toevoegen neerkomt op één regel hieronder i.p.v.
+// losse aanpassingen op meerdere plekken in de code.
+// Let op: dit blijft een compile-time lijst (geen live discovery van
+// alle media_player-entiteiten in HA) — passend bij het geheugen van
+// een ESP32, maar wel makkelijk uit te breiden.
+
+struct MusicPlayerConfig {
+    const char* name;
+    const char* entity_id;
+};
+
+#define NUM_MUSIC_PLAYERS 2
+
+static const MusicPlayerConfig MUSIC_PLAYERS[NUM_MUSIC_PLAYERS] = {
+    { "Woonkamer",   HA_SONOS_WOONKAMER },
+    { "Tuinkantoor", HA_SONOS_KANTOOR   }
+};
 
 // ====
 // TV

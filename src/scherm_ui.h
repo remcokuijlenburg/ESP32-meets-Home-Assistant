@@ -2,6 +2,8 @@
 #define SCHERM_UI_H
 
 #include <lvgl.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #ifndef THERMO_STATE_DEFINED
 #define THERMO_STATE_DEFINED
@@ -76,9 +78,27 @@ void ui_set_climate_state(
 );
 
 // Muziek
-void ui_set_music_state(
-    const char* player_name,
-    bool playing
+// idx = index in MUSIC_PLAYERS (ha_entities.h)
+// volume_pct: 0-100, of -1 als onbekend/niet ondersteund
+// src0..src2: namen uit het source_list attribuut van HA (max 3), "" = leeg slot
+void ui_set_music_player(
+    int idx,
+    bool available,
+    bool playing,
+    int volume_pct,
+    const char* title,
+    const char* artist,
+    bool grouped,
+    const char* src0,
+    const char* src1,
+    const char* src2
+);
+
+// Werkt het albumhoesje bij. jpeg_data/len leeg (len==0) => toon fallback icoon.
+void ui_set_music_picture(
+    int idx,
+    const uint8_t* jpeg_data,
+    size_t len
 );
 
 #endif // SCHERM_UI_H

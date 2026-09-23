@@ -32,6 +32,7 @@
 #define LV_USE_ARC      1
 #define LV_USE_SLIDER   1
 #define LV_USE_TILEVIEW 1
+#define LV_USE_CANVAS   1
 
 // Fonts
 #define LV_FONT_MONTSERRAT_12 1

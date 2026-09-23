@@ -526,15 +526,228 @@ static void sync_climate()
 // MUZIEK
 // ====
 
+// Alle bruikbare velden van één media_player-entiteit, in ÉÉN
+// HTTP-call opgehaald (i.p.v. per attribuut een aparte request,
+// wat bij meerdere spelers snel oploopt).
+struct HaMediaPlayerRaw {
+    bool available;
+    bool playing;
+    int volume_pct;       // 0-100, -1 = onbekend
+    String title;
+    String artist;
+    String picture;        // relatief pad, "" = geen hoesje
+    bool grouped;
+    String src0, src1, src2;
+};
+
+static HaMediaPlayerRaw ha_get_media_player(const char* entity_id)
+{
+    HaMediaPlayerRaw r;
+    r.available = false;
+    r.playing = false;
+    r.volume_pct = -1;
+    r.grouped = false;
+
+    HTTPClient http;
+
+    String url =
+        "http://" + String(HA_URL) +
+        ":" + String(HA_PORT) +
+        "/api/states/" + String(entity_id);
+
+    http.begin(url);
+    http.addHeader("Authorization", "Bearer " + String(HA_TOKEN));
+
+    int httpCode = http.GET();
+
+    if (httpCode != 200) {
+        Serial.printf("[HA] HTTP %d voor %s\n", httpCode, entity_id);
+        http.end();
+        return r;
+    }
+
+    String payload = http.getString();
+    http.end();
+
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, payload);
+
+    if (err) {
+        Serial.printf("[HA] JSON fout voor %s\n", entity_id);
+        return r;
+    }
+
+    String state = doc["state"].as<String>();
+
+    if (state == "unavailable" || state == "unknown" || state.length() == 0) {
+        return r;
+    }
+
+    r.available = true;
+    r.playing = (state == "playing");
+
+    JsonObject attrs = doc["attributes"];
+
+    if (!attrs["volume_level"].isNull()) {
+        r.volume_pct = (int) roundf(attrs["volume_level"].as<float>() * 100.0f);
+    }
+
+    if (!attrs["media_title"].isNull()) {
+        r.title = attrs["media_title"].as<String>();
+    }
+
+    if (!attrs["media_artist"].isNull()) {
+        r.artist = attrs["media_artist"].as<String>();
+    }
+
+    if (!attrs["entity_picture"].isNull()) {
+        r.picture = attrs["entity_picture"].as<String>();
+    }
+
+    JsonArray group_members = attrs["group_members"];
+    if (!group_members.isNull() && group_members.size() > 1) {
+        r.grouped = true;
+    }
+
+    JsonArray sources = attrs["source_list"];
+    if (!sources.isNull()) {
+        if (sources.size() > 0) r.src0 = sources[0].as<String>();
+        if (sources.size() > 1) r.src1 = sources[1].as<String>();
+        if (sources.size() > 2) r.src2 = sources[2].as<String>();
+    }
+
+    return r;
+}
+
+// Downloadt een albumhoesje (JPEG) van een relatief HA-pad naar 'buf'.
+// Geeft het aantal gelezen bytes terug, of 0 bij een fout / te groot bestand.
+static size_t ha_fetch_image(const String& picture_path, uint8_t* buf, size_t buf_size)
+{
+    if (picture_path.length() == 0) {
+        return 0;
+    }
+
+    HTTPClient http;
+
+    String url =
+        "http://" + String(HA_URL) +
+        ":" + String(HA_PORT) +
+        picture_path;
+
+    http.begin(url);
+    http.addHeader("Authorization", "Bearer " + String(HA_TOKEN));
+
+    int httpCode = http.GET();
+
+    if (httpCode != 200) {
+        Serial.printf("[HA] Albumhoesje ophalen mislukt (HTTP %d)\n", httpCode);
+        http.end();
+        return 0;
+    }
+
+    int content_len = http.getSize();
+
+    if (content_len > (int) buf_size) {
+        Serial.printf(
+            "[HA] Albumhoesje te groot (%d bytes, buffer %d)\n",
+            content_len,
+            (int) buf_size
+        );
+        http.end();
+        return 0;
+    }
+
+    WiFiClient* stream = http.getStreamPtr();
+
+    size_t read_total = 0;
+    uint32_t start = millis();
+
+    while (http.connected() && read_total < buf_size && (millis() - start) < 4000) {
+
+        size_t avail = stream->available();
+
+        if (avail == 0) {
+            delay(5);
+            continue;
+        }
+
+        size_t to_read = avail;
+        if (to_read > (buf_size - read_total)) {
+            to_read = buf_size - read_total;
+        }
+
+        int n = stream->readBytes(buf + read_total, to_read);
+        if (n <= 0) {
+            break;
+        }
+
+        read_total += n;
+
+        if (content_len > 0 && (int) read_total >= content_len) {
+            break;
+        }
+    }
+
+    http.end();
+
+    return read_total;
+}
+
+// Cache van de laatst opgehaalde entity_picture-URL per speler, zodat
+// we een ongewijzigd albumhoesje niet elke poll opnieuw downloaden.
+static String last_picture_url[NUM_MUSIC_PLAYERS];
+
+// Herbruikbare buffer voor het downloaden van albumhoesjes (JPEG).
+#define ALBUM_ART_BUF_SIZE 24576
+static uint8_t album_art_buf[ALBUM_ART_BUF_SIZE];
+
 static void sync_music()
 {
-    bool playing =
-        ha_get_state(HA_SONOS_WOONKAMER) == "playing";
+    for (int i = 0; i < NUM_MUSIC_PLAYERS; i++) {
 
-    ui_set_music_state(
-        "Woonkamer Sonos",
-        playing
-    );
+        const MusicPlayerConfig& cfg = MUSIC_PLAYERS[i];
+
+        HaMediaPlayerRaw p = ha_get_media_player(cfg.entity_id);
+
+        Serial.printf(
+            "[HA] %s (%s): beschikbaar=%s, speelt=%s, vol=%d%%\n",
+            cfg.name,
+            cfg.entity_id,
+            p.available ? "JA" : "NEE",
+            p.playing ? "JA" : "NEE",
+            p.volume_pct
+        );
+
+        ui_set_music_player(
+            i,
+            p.available,
+            p.playing,
+            p.volume_pct,
+            p.title.c_str(),
+            p.artist.c_str(),
+            p.grouped,
+            p.src0.c_str(),
+            p.src1.c_str(),
+            p.src2.c_str()
+        );
+
+        // Albumhoesje: alleen opnieuw downloaden als de URL gewijzigd is
+        if (p.picture != last_picture_url[i]) {
+
+            last_picture_url[i] = p.picture;
+
+            if (p.picture.length() == 0) {
+                ui_set_music_picture(i, nullptr, 0);
+            } else {
+                size_t len = ha_fetch_image(p.picture, album_art_buf, ALBUM_ART_BUF_SIZE);
+                if (len > 0) {
+                    ui_set_music_picture(i, album_art_buf, len);
+                } else {
+                    ui_set_music_picture(i, nullptr, 0);
+                }
+            }
+        }
+    }
 }
 
 // ====
