@@ -22,6 +22,7 @@
 #define LV_DPI_DEF 130
 
 #define LV_SPRINTF_CUSTOM 0
+#define LV_SPRINTF_USE_FLOAT 1
 
 // Enable widgets we need
 #define LV_USE_BTN      1
