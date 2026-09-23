@@ -4,6 +4,8 @@
 
 #include "scherm_ui.h"
 #include "ui_icons.h"
+#include "ha_entities.h"
+#include "ha_client.h"
 
 // ==========================================
 // DATASTRUCTUUR VOOR KAMERS
@@ -11,18 +13,17 @@
 
 struct ClimateRoom {
     const char* name;
+    const char* entity_id;
     float current_temp;
     float target_temp;
     bool is_heating;
 };
 
-#define NUM_CLIMATE_ROOMS 4
+#define NUM_CLIMATE_ROOMS 2
 
 static ClimateRoom climate_rooms[NUM_CLIMATE_ROOMS] = {
-    {"Woonkamer",   21.5f, 20.0f, false},
-    {"WC",          18.0f, 18.0f, false},
-    {"Badkamer",    22.1f, 23.0f, true},
-    {"Tuinkantoor", 19.5f, 20.5f, true}
+    {"Woonkamer",   HA_CLIMATE_WOONKAMER,   20.0f, 20.0f, false},
+    {"Tuinkantoor", HA_CLIMATE_TUINKANTOOR, 20.0f, 20.0f, false}
 };
 
 // ==========================================
@@ -37,21 +38,21 @@ static int active_room_index = 0;
 
 // Klimaat tegels
 static lv_obj_t* climate_tiles[NUM_CLIMATE_ROOMS] = {
-    NULL, NULL, NULL, NULL
+    NULL, NULL
 };
 
 // Labels op de tegels
 static lv_obj_t* climate_current_labels[NUM_CLIMATE_ROOMS] = {
-    NULL, NULL, NULL, NULL
+    NULL, NULL
 };
 
 static lv_obj_t* climate_target_labels[NUM_CLIMATE_ROOMS] = {
-    NULL, NULL, NULL, NULL
+    NULL, NULL
 };
 
 // Verwarmingsiconen
 static lv_obj_t* climate_heat_icons[NUM_CLIMATE_ROOMS] = {
-    NULL, NULL, NULL, NULL
+    NULL, NULL
 };
 
 // ==========================================
@@ -151,6 +152,37 @@ static void detail_slider_event_cb(lv_event_t* e)
     // ----------------------------------------
 
     update_climate_tile(active_room_index);
+}
+
+// ==========================================
+// SLIDER LOSGELATEN — COMMANDO NAAR HOME ASSISTANT
+// ==========================================
+// Wordt pas bij loslaten verstuurd (niet tijdens het slepen)
+// om de UI niet te blokkeren met herhaalde HTTP-aanroepen.
+
+static void detail_slider_released_cb(lv_event_t* e)
+{
+    lv_obj_t* slider = lv_event_get_target(e);
+
+    int value = lv_slider_get_value(slider);
+
+    float new_target = value / 10.0f;
+
+    char extra[32];
+
+    snprintf(
+        extra,
+        sizeof(extra),
+        "\"temperature\":%.1f",
+        new_target
+    );
+
+    ha_call_service(
+        "climate",
+        "set_temperature",
+        climate_rooms[active_room_index].entity_id,
+        extra
+    );
 }
 
 // ==========================================
@@ -1074,6 +1106,13 @@ void build_climate_detail(lv_obj_t* parent)
         slider_detail,
         detail_slider_event_cb,
         LV_EVENT_VALUE_CHANGED,
+        NULL
+    );
+
+    lv_obj_add_event_cb(
+        slider_detail,
+        detail_slider_released_cb,
+        LV_EVENT_RELEASED,
         NULL
     );
 }

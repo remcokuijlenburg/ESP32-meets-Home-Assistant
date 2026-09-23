@@ -175,6 +175,51 @@ static float ha_get_float_attribute(
 }
 
 // ----
+// Haalt een string attribuut op uit een HA-entiteit.
+// Geeft 'fallback' terug bij een fout.
+// ----
+
+static String ha_get_string_attribute(
+    const char* entity_id,
+    const char* attribute,
+    const char* fallback = ""
+)
+{
+    HTTPClient http;
+
+    String url =
+        "http://" + String(HA_URL) +
+        ":" + String(HA_PORT) +
+        "/api/states/" + String(entity_id);
+
+    http.begin(url);
+    http.addHeader(
+        "Authorization",
+        "Bearer " + String(HA_TOKEN)
+    );
+
+    int httpCode = http.GET();
+
+    if (httpCode != 200) {
+        http.end();
+        return fallback;
+    }
+
+    String payload = http.getString();
+    http.end();
+
+    JsonDocument doc;
+    DeserializationError err =
+        deserializeJson(doc, payload);
+
+    if (err) {
+        return fallback;
+    }
+
+    return doc["attributes"][attribute].as<String>();
+}
+
+// ----
 // Converteert een state-string naar een float.
 // Vervangt komma door punt (NL locale).
 // Geeft 'fallback' terug als de state leeg of
@@ -404,6 +449,51 @@ static void sync_climate()
     ui_set_home_thermostat(
         current_temp,
         target_temp
+    );
+
+    // ----
+    // Tuinkantoor: Vonroc verwarming
+    // ----
+
+    float tk_current = ha_get_float_attribute(
+        HA_CLIMATE_TUINKANTOOR,
+        "current_temperature",
+        20.0f
+    );
+
+    if (tk_current <= 0.0f || tk_current > 50.0f) {
+        tk_current = 20.0f;
+    }
+
+    float tk_target = ha_get_float_attribute(
+        HA_CLIMATE_TUINKANTOOR,
+        "temperature",
+        20.0f
+    );
+
+    if (tk_target < 5.0f || tk_target > 30.0f) {
+        tk_target = 20.0f;
+    }
+
+    bool tk_heating =
+        ha_get_string_attribute(
+            HA_CLIMATE_TUINKANTOOR,
+            "hvac_action",
+            ""
+        ) == "heating";
+
+    Serial.printf(
+        "[HA] Tuinkantoor: %.1f -> %.1f °C, verwarmen: %s\n",
+        tk_current,
+        tk_target,
+        tk_heating ? "JA" : "NEE"
+    );
+
+    ui_set_climate_state(
+        "Tuinkantoor",
+        tk_current,
+        tk_target,
+        tk_heating
     );
 
     // ----
