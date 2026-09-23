@@ -261,7 +261,7 @@ void build_music_screen(lv_obj_t * parent)
         lv_obj_t * card =
             lv_obj_create(list);
 
-        lv_obj_set_size(card, 440, 130);
+        lv_obj_set_size(card, 440, 156);
 
         lv_obj_set_style_border_width(card, 0, 0);
 
@@ -294,8 +294,8 @@ void build_music_screen(lv_obj_t * parent)
         lv_obj_align(
             lbl_name,
             LV_ALIGN_TOP_LEFT,
-            12,
-            10
+            14,
+            12
         );
 
         // Status-icoon
@@ -312,7 +312,7 @@ void build_music_screen(lv_obj_t * parent)
         lv_obj_align(
             player.lbl_icon,
             LV_ALIGN_TOP_RIGHT,
-            -12,
+            -14,
             10
         );
 
@@ -327,11 +327,17 @@ void build_music_screen(lv_obj_t * parent)
             0
         );
 
+        lv_obj_set_style_text_font(
+            player.lbl_status,
+            &lv_font_montserrat_16,
+            0
+        );
+
         lv_obj_align(
             player.lbl_status,
-            LV_ALIGN_LEFT_MID,
-            12,
-            -5
+            LV_ALIGN_TOP_LEFT,
+            14,
+            48
         );
 
         // STOP knop
@@ -339,13 +345,13 @@ void build_music_screen(lv_obj_t * parent)
         lv_obj_t * btn_stop =
             lv_btn_create(card);
 
-        lv_obj_set_size(btn_stop, 120, 38);
+        lv_obj_set_size(btn_stop, 130, 44);
 
         lv_obj_align(
             btn_stop,
             LV_ALIGN_BOTTOM_LEFT,
-            12,
-            -10
+            14,
+            -14
         );
 
         lv_obj_set_style_bg_color(
@@ -376,13 +382,13 @@ void build_music_screen(lv_obj_t * parent)
         lv_obj_t * btn_play =
             lv_btn_create(card);
 
-        lv_obj_set_size(btn_play, 120, 38);
+        lv_obj_set_size(btn_play, 130, 44);
 
         lv_obj_align(
             btn_play,
             LV_ALIGN_BOTTOM_RIGHT,
-            -12,
-            -10
+            -14,
+            -14
         );
 
         lv_obj_set_style_bg_color(
