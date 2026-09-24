@@ -2,6 +2,37 @@
 #include "scherm_ui.h"
 #include "ui_icons.h"
 #include "sntp_clock.h"
+#include "ha_client.h"
+#include "ha_entities.h"
+
+// ==========================================
+// TV-KNOP STATUS
+// ==========================================
+
+static lv_obj_t* btn_tv    = nullptr;
+static bool       tv_is_on = false;
+
+static const lv_color_t TV_COLOR_OFF = lv_color_hex(0x333333);
+static const lv_color_t TV_COLOR_ON  = lv_color_hex(0x0099D8);
+
+static void update_tv_button()
+{
+    if (btn_tv == nullptr) {
+        return;
+    }
+
+    lv_obj_set_style_bg_color(
+        btn_tv,
+        tv_is_on ? TV_COLOR_ON : TV_COLOR_OFF,
+        0
+    );
+}
+
+void ui_set_tv_state(bool on)
+{
+    tv_is_on = on;
+    update_tv_button();
+}
 
 // ==========================================
 // NAVIGATIE CALLBACKS
@@ -25,6 +56,32 @@ static void nav_music_cb(lv_event_t * e)
     if (scr_music != NULL) {
         lv_scr_load(scr_music);
     }
+}
+
+static void tv_btn_event_cb(lv_event_t * e)
+{
+    if (!tv_is_on) {
+
+        // Aanzetten via de HA-automatisering (regelt WOL/inputs),
+        // dezelfde die ook aan de Hue-knop hangt.
+        ha_call_service(
+            "automation",
+            "trigger",
+            HA_AUTOMATION_TV_AAN,
+            "\"skip_condition\":true"
+        );
+
+    } else {
+
+        // Uitzetten: beide media_players rechtstreeks uitzetten
+        ha_call_service("media_player", "turn_off", HA_TV_LG);
+        ha_call_service("media_player", "turn_off", HA_TV_KPN);
+    }
+
+    // Optimistische UI-update — sync_tv() bevestigt dit binnen
+    // 5 seconden met de echte HA-status.
+    tv_is_on = !tv_is_on;
+    update_tv_button();
 }
 
 // ==========================================
@@ -327,11 +384,16 @@ sntp_clock_set_label(lbl_date);
 
     lv_obj_set_size(btn_m, 105, 70);
 
-    lv_obj_set_style_bg_color(
+    btn_tv = btn_m;
+
+    lv_obj_add_event_cb(
         btn_m,
-        btn_kleur,
-        0
+        tv_btn_event_cb,
+        LV_EVENT_CLICKED,
+        NULL
     );
+
+    update_tv_button();
 
     lv_obj_t * lbl_m = lv_label_create(btn_m);
 

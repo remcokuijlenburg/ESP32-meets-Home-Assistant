@@ -661,6 +661,22 @@ static void sync_music()
 }
 
 // ====
+// TV
+// ====
+
+static void sync_tv()
+{
+    String state = ha_get_state(HA_TV_LG);
+
+    bool on = (state.length() > 0 &&
+               state != "off" &&
+               state != "unavailable" &&
+               state != "unknown");
+
+    ui_set_tv_state(on);
+}
+
+// ====
 // PUBLIEKE API
 // ====
 
@@ -697,4 +713,5 @@ void ha_loop()
     sync_lights();
     sync_climate();
     sync_music();
+    sync_tv();
 }

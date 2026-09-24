@@ -18,7 +18,9 @@
 // VERLICHTING — BIJKEUKEN
 // ====
 
-#define HA_LIGHT_BIJKEUKEN_1    "light.signify_netherlanbijkeuken_lamp"
+// Fysiek zit hier een slimme dimmer tussen: de lampen zelf worden
+// bediend via deze dimmer-entiteit, niet via het losse lamp-apparaat.
+#define HA_LIGHT_BIJKEUKEN_1    "light.dimmer"
 
 // ====
 // VERLICHTING — TUINKANTOOR / SCHUUR
@@ -120,5 +122,10 @@ static const MusicPlayerConfig MUSIC_PLAYERS[NUM_MUSIC_PLAYERS] = {
 // TV
 // ====
 
-#define HA_TV_LG                "media_player.tv"
+// Uitzetten: rechtstreeks op de media_player-entiteiten
+#define HA_TV_LG                "media_player.lg_webos_tv_nano81t3a"
 #define HA_TV_KPN               "media_player.kpn_tv"
+
+// Aanzetten: via de bestaande HA-automatisering (regelt WOL/inputs),
+// dezelfde automatisering die ook aan de Hue-knop hangt.
+#define HA_AUTOMATION_TV_AAN    "automation.lg_tv_inschakelen"

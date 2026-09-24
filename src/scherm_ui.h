@@ -69,6 +69,9 @@ void ui_set_light_state(
     bool state
 );
 
+// TV (aan/uit-knop op het beginscherm)
+void ui_set_tv_state(bool on);
+
 // Klimaat
 // is_on: hvac_mode van de entiteit is niet "off" (kachel/thermostaat
 // staat aan). heating: er wordt op dit moment daadwerkelijk warmte
