@@ -172,16 +172,45 @@ void setup()
 
     Serial.println("Home Assistant initialized");
 
-  // Tijdelijke test: woonkamerlamp schakelen bij opstarten
-    ha_call_service(
-    "light",
-    "toggle",
-    HA_LIGHT_WOONKAMER_1
-    );
-    
     Serial.println("====");
     Serial.println("Setup complete");
     Serial.println("====");
+}
+
+// ====
+// WIFI HERSTEL
+// ====
+
+static void maintain_wifi()
+{
+    static uint32_t last_attempt = 0;
+    static bool was_connected = false;
+    const uint32_t RECONNECT_INTERVAL_MS = 10000;
+
+    bool connected = (WiFi.status() == WL_CONNECTED);
+    if (connected) {
+        if (!was_connected) {
+            Serial.print("[WiFi] Verbonden, IP: ");
+            Serial.println(WiFi.localIP());
+            ui_set_wifi_connected(true);
+            sntp_clock_init();
+        }
+        was_connected = true;
+        return;
+    }
+
+    if (was_connected) {
+        Serial.println("[WiFi] Verbinding verloren");
+        ui_set_wifi_connected(false);
+    }
+    was_connected = false;
+
+    uint32_t now = millis();
+    if (now - last_attempt >= RECONNECT_INTERVAL_MS) {
+        last_attempt = now;
+        Serial.println("[WiFi] Opnieuw verbinden...");
+        WiFi.reconnect();
+    }
 }
 
 // ====
@@ -206,6 +235,8 @@ void loop()
     // ----
 
     lv_timer_handler();
+
+    maintain_wifi();
 
     // ----
     // Home Assistant verwerken

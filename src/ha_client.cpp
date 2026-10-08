@@ -19,9 +19,10 @@
 static String ha_get_state(const char* entity_id)
 {
     HTTPClient http;
+    http.setTimeout(5000);
 
     String url =
-        "http://" + String(HA_URL) +
+        "http://" + String(HA_HOST) +
         ":" + String(HA_PORT) +
         "/api/states/" + String(entity_id);
 
@@ -88,9 +89,10 @@ bool ha_call_service(
     }
 
     HTTPClient http;
+    http.setTimeout(5000);
 
     String url =
-        "http://" + String(HA_URL) +
+        "http://" + String(HA_HOST) +
         ":" + String(HA_PORT) +
         "/api/services/" + String(domain) +
         "/" + String(service);
@@ -141,9 +143,10 @@ static float ha_get_float_attribute(
 )
 {
     HTTPClient http;
+    http.setTimeout(5000);
 
     String url =
-        "http://" + String(HA_URL) +
+        "http://" + String(HA_HOST) +
         ":" + String(HA_PORT) +
         "/api/states/" + String(entity_id);
 
@@ -186,9 +189,10 @@ static String ha_get_string_attribute(
 )
 {
     HTTPClient http;
+    http.setTimeout(5000);
 
     String url =
-        "http://" + String(HA_URL) +
+        "http://" + String(HA_HOST) +
         ":" + String(HA_PORT) +
         "/api/states/" + String(entity_id);
 
@@ -562,9 +566,10 @@ static HaMediaPlayerRaw ha_get_media_player(const char* entity_id)
     r.grouped = false;
 
     HTTPClient http;
+    http.setTimeout(5000);
 
     String url =
-        "http://" + String(HA_URL) +
+        "http://" + String(HA_HOST) +
         ":" + String(HA_PORT) +
         "/api/states/" + String(entity_id);
 
