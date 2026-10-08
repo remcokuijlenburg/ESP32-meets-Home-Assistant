@@ -12,7 +12,7 @@
 #include "secrets.h"
 #include "ha_entities.h"
 #include "ota.h"
-
+#include "idle_manager.h"
 
 // ====
 // DISPLAY / TOUCH CONFIGURATIE
@@ -41,6 +41,14 @@ void my_touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
 
     if (ts.isTouched && ts.touches > 0) {
 
+        idle_manager_touch_detected();
+
+        if (idle_manager_is_wake_touch()) {
+            data->state = LV_INDEV_STATE_REL;
+            idle_manager_clear_wake_touch();
+            return;
+        }
+
         // Touch-coördinaten omzetten naar de schermoriëntatie
         int x = ts.points[0].y;
         int y = 479 - ts.points[0].x;
@@ -50,7 +58,6 @@ void my_touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
         data->state = LV_INDEV_STATE_PR;
 
     } else {
-
         data->state = LV_INDEV_STATE_REL;
     }
 }
@@ -182,6 +189,9 @@ void setup()
 
     Serial.println("Home Assistant initialized");
 
+    idle_manager_init();
+    Serial.println("Idle manager initialized");
+
     Serial.println("====");
     Serial.println("Setup complete");
     Serial.println("====");
@@ -245,6 +255,9 @@ void loop()
     // ----
 
     lv_timer_handler();
+    idle_manager_update();
+
+    maintain_wifi();
 
     maintain_wifi();
 
