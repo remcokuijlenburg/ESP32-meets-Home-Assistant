@@ -122,19 +122,26 @@ static void light_btn_event_cb(lv_event_t * e)
     bool new_state = !item.is_on;
     const char* service = new_state ? "turn_on" : "turn_off";
 
-    // Alle lampen van deze kamer naar dezelfde eindstaat sturen
+    // Alle lampen van deze kamer naar dezelfde eindstaat sturen.
+    // Pas de UI pas aan wanneer Home Assistant elke actie accepteert.
+    bool all_ok = true;
     for (int i = 0; i < item.entity_count; i++) {
 
         char domain[16];
         entity_domain(item.entity_ids[i], domain, sizeof(domain));
 
-        ha_call_service(domain, service, item.entity_ids[i]);
+        if (!ha_call_service(domain, service, item.entity_ids[i])) {
+            all_ok = false;
+        }
     }
 
-    // Optimistische UI-update — sync_lights() bevestigt dit
-    // binnen 5 seconden met de echte HA-status.
-    item.is_on = new_state;
-    update_light_tile(idx);
+    if (all_ok) {
+        item.is_on = new_state;
+        update_light_tile(idx);
+    } else {
+        Serial.printf("[HA] Kamer '%s' niet volledig bijgewerkt; wacht op volgende sync\n",
+                      item.name);
+    }
 }
 
 // ============================================================
