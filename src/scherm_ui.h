@@ -39,28 +39,53 @@ LV_FONT_DECLARE(Custom_Icons_32);
 #ifndef ICON_FIRE
 #endif
 
-// UI Functies
+// ============================================================
+// UI INITIALISATIE FUNCTIES
+// ============================================================
+
 void setup_atag_style_ui();
+
 void build_home_screen(lv_obj_t * parent);
 void build_lights_screen(lv_obj_t * parent);
 void build_climate_overview(lv_obj_t * parent);
 void build_climate_detail(lv_obj_t * parent);
 void build_music_screen(lv_obj_t * parent);
 
-// Home Assistant data setters
+// ============================================================
+// HOME ASSISTANT DATA SETTERS (temeratura, staat, enz.)
+// ============================================================
+
 void ui_set_indoor_temp(int deg);
 void ui_set_home_thermostat(float current_temp, float target_temp);
 void ui_set_outdoor_temp(float deg);
 void ui_set_boiler_flame(bool active);
+
+// ============================================================
+// TILE UPDATE FUNCTIES (met index validatie)
+// ============================================================
+
+// Update tile state (idx: 0-8, één per tile op huidi scherm)
+// Includes null check en bounds validation
 void ui_update_tile_state(int idx, const char* state);
+
+// Update tile waarde (bijv. brightness % of fan speed %)
+// Includes null check en bounds validation
 void ui_update_tile_value(int idx, const char* val);
+
+// Update thermostaat-details voor detail-scherm
+// Includes nullptr check
 void ui_update_thermostat(ThermoState *s);
+
+// ============================================================
+// VERBINDINGSSTATUS SETTERS
+// ============================================================
+
 void ui_set_ha_connected(bool connected);
 void ui_set_wifi_connected(bool connected);
 void ui_set_fan_state(bool on);
 
 // ============================================================
-// UI UPDATE FUNCTIES (voor Home Assistant synchronisatie)
+// UI ENTITY SETTERS (verlichting, TV, klimaat, muziek)
 // ============================================================
 
 // Verlichting
@@ -73,10 +98,8 @@ void ui_set_light_state(
 void ui_set_tv_state(bool on);
 
 // Klimaat
-// is_on: hvac_mode van de entiteit is niet "off" (kachel/thermostaat
-// staat aan). heating: er wordt op dit moment daadwerkelijk warmte
-// geleverd (vlam/element actief) — dit kan JA zijn terwijl is_on ook
-// JA is, maar niet andersom.
+// is_on: hvac_mode van de entiteit is niet "off" (kachel/thermostaat staat aan)
+// heating: er wordt op dit moment daadwerkelijk warmte geleverd (vlam/element actief)
 void ui_set_climate_state(
     const char* room_name,
     float current_temp,
