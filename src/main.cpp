@@ -11,6 +11,7 @@
 #include "config.h"
 #include "secrets.h"
 #include "ha_entities.h"
+#include "ota.h"
 
 
 // ====
@@ -149,6 +150,15 @@ void setup()
     }
 
     // ----
+    // 5a. OTA (WiFi-flashen) initialiseren
+    // ----
+
+    if (WiFi.status() == WL_CONNECTED) {
+        ota_init();
+        Serial.println("OTA initialized");
+    }
+
+    // ----
     // 5b. SNTP klok synchroniseren
     // ----
 
@@ -243,6 +253,12 @@ void loop()
     // ----
 
     ha_loop();
+
+    // ----
+    // OTA (WiFi-flash) verwerken
+    // ----
+
+    ota_loop();
 
     // ----
     // Klok bijwerken

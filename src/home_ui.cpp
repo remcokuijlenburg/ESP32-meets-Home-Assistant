@@ -1,10 +1,12 @@
 #include <Arduino.h>
 #include <lvgl.h>
+#include <Arduino.h>
 #include "scherm_ui.h"
 #include "ui_icons.h"
 #include "sntp_clock.h"
 #include "ha_client.h"
 #include "ha_entities.h"
+
 
 // ==========================================
 // TV-KNOP STATUS
@@ -15,6 +17,46 @@ static bool       tv_is_on = false;
 
 static const lv_color_t TV_COLOR_OFF = lv_color_hex(0x333333);
 static const lv_color_t TV_COLOR_ON  = lv_color_hex(0x0099D8);
+
+// ==========================================
+// WIFI / HA VERBINDINGSSTATUS
+// ==========================================
+
+static lv_obj_t* lbl_wifi_status = nullptr;
+static lv_obj_t* lbl_ha_status   = nullptr;
+
+static const lv_color_t CONN_COLOR_OK     = lv_color_hex(0x0099D8);
+static const lv_color_t CONN_COLOR_DOWN   = lv_color_hex(0xAAAAAA);
+
+void ui_set_wifi_connected(bool connected)
+{
+    Serial.printf("WiFi Connection status: %s\n", connected ? "Connected" : "Disconnected");
+
+    if (lbl_wifi_status == nullptr) {
+        return;
+    }
+
+    lv_obj_set_style_text_color(
+        lbl_wifi_status,
+        connected ? CONN_COLOR_OK : CONN_COLOR_DOWN,
+        0
+    );
+}
+
+void ui_set_ha_connected(bool connected)
+{
+    Serial.printf("HA Connection status: %s\n", connected ? "Connected" : "Disconnected");
+
+    if (lbl_ha_status == nullptr) {
+        return;
+    }
+
+    lv_obj_set_style_text_color(
+        lbl_ha_status,
+        connected ? CONN_COLOR_OK : CONN_COLOR_DOWN,
+        0
+    );
+}
 
 static void update_tv_button()
 {
@@ -184,6 +226,47 @@ sntp_clock_set_label(lbl_date);
     lv_obj_add_flag(lbl_flame, LV_OBJ_FLAG_HIDDEN);
 
     lbl_flame_home = lbl_flame;
+
+    // WiFi- en HA-verbindingsstatus: blauw = verbonden, lichtgrijs =
+    // niet verbonden. Altijd zichtbaar (in tegenstelling tot de vlam),
+    // zodat een verbindingsprobleem direct opvalt op de wand.
+    lv_obj_t * lbl_wifi = lv_label_create(top_box);
+
+    lv_label_set_text(lbl_wifi, LV_SYMBOL_WIFI);
+
+    lv_obj_set_style_text_color(
+        lbl_wifi,
+        lv_color_hex(0xAAAAAA),
+        0
+    );
+
+    lv_obj_align(
+        lbl_wifi,
+        LV_ALIGN_RIGHT_MID,
+        -160,
+        0
+    );
+
+    lbl_wifi_status = lbl_wifi;
+
+    lv_obj_t * lbl_ha = lv_label_create(top_box);
+
+    lv_label_set_text(lbl_ha, LV_SYMBOL_HOME);
+
+    lv_obj_set_style_text_color(
+        lbl_ha,
+        lv_color_hex(0xAAAAAA),
+        0
+    );
+
+    lv_obj_align(
+        lbl_ha,
+        LV_ALIGN_RIGHT_MID,
+        -130,
+        0
+    );
+
+    lbl_ha_status = lbl_ha;
 
     // =====================================================
     // MIDDEN (KLIMAAT WIDGET)
