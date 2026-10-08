@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <lvgl.h>
 #include <stdint.h>
 #include <string.h>
