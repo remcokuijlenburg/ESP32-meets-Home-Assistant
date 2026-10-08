@@ -10,6 +10,15 @@
 #include "scherm_ui.h"
 
 // ====
+// VERBINDINGSSTATUS
+// ====
+
+// Bijgehouden op basis van het resultaat van de laatste HTTP-call naar
+// Home Assistant (ha_get_state / ha_call_service). Gebruikt door
+// ha_loop() om ui_set_ha_connected() aan te sturen.
+static bool g_ha_reachable = false;
+
+// ====
 // INTERNE HULPFUNCTIES
 // ====
 
@@ -42,8 +51,11 @@ static String ha_get_state(const char* entity_id)
         );
 
         http.end();
+        g_ha_reachable = false;
         return "";
     }
+
+    g_ha_reachable = true;
 
     String payload = http.getString();
     http.end();
@@ -111,6 +123,8 @@ bool ha_call_service(
     int httpCode = http.POST(body);
 
     bool ok = (httpCode == 200 || httpCode == 201);
+
+    g_ha_reachable = ok;
 
     if (!ok) {
         Serial.printf(
@@ -690,28 +704,43 @@ void ha_init()
 void ha_loop()
 {
     static uint32_t last_poll = 0;
+    static uint8_t  poll_step = 0;
 
     uint32_t now = millis();
 
-    // Elke 5 seconden pollen
+    // In plaats van alle categorieën elke 5s in 1x na elkaar te pollen
+    // (wat het scherm elke keer ~1-2s liet bevriezen), wordt hier telkens
+    // maar 1 categorie per stap gepolld. Met 4 stappen van 1250ms komt
+    // elke categorie nog steeds ongeveer elke 5s aan de beurt, maar
+    // blokkeert een enkele ha_loop()-aanroep veel korter, zodat LVGL
+    // tussendoor kan blijven tekenen/reageren op aanraking.
+    const uint32_t STEP_INTERVAL_MS = 1250;
 
-    if (now - last_poll < 5000) {
+    if (now - last_poll < STEP_INTERVAL_MS) {
         return;
     }
 
     last_poll = now;
 
-    // Alleen pollen als WiFi verbonden is
+    // WiFi-status bijhouden voor het verbindingsicoon, ook wanneer HA
+    // zelf (nog) niet bereikbaar is.
+    bool wifi_ok = (WiFi.status() == WL_CONNECTED);
+    ui_set_wifi_connected(wifi_ok);
 
-    if (WiFi.status() != WL_CONNECTED) {
+    if (!wifi_ok) {
         Serial.println("[HA] Geen WiFi verbinding");
+        ui_set_ha_connected(false);
         return;
     }
 
-    Serial.println("[HA] Polling states...");
+    switch (poll_step) {
+        case 0: sync_lights();  break;
+        case 1: sync_climate(); break;
+        case 2: sync_music();   break;
+        case 3: sync_tv();      break;
+    }
 
-    sync_lights();
-    sync_climate();
-    sync_music();
-    sync_tv();
+    poll_step = (poll_step + 1) % 4;
+
+    ui_set_ha_connected(g_ha_reachable);
 }

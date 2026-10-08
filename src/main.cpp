@@ -11,6 +11,7 @@
 #include "config.h"
 #include "secrets.h"
 #include "ha_entities.h"
+#include "ota.h"
 
 
 // ====
@@ -149,6 +150,15 @@ void setup()
     }
 
     // ----
+    // 5a. OTA (WiFi-flashen) initialiseren
+    // ----
+
+    if (WiFi.status() == WL_CONNECTED) {
+        ota_init();
+        Serial.println("OTA initialized");
+    }
+
+    // ----
     // 5b. SNTP klok synchroniseren
     // ----
 
@@ -172,13 +182,6 @@ void setup()
 
     Serial.println("Home Assistant initialized");
 
-  // Tijdelijke test: woonkamerlamp schakelen bij opstarten
-    ha_call_service(
-    "light",
-    "toggle",
-    HA_LIGHT_WOONKAMER_1
-    );
-    
     Serial.println("====");
     Serial.println("Setup complete");
     Serial.println("====");
@@ -212,6 +215,12 @@ void loop()
     // ----
 
     ha_loop();
+
+    // ----
+    // OTA (WiFi-flash) verwerken
+    // ----
+
+    ota_loop();
 
     // ----
     // Klok bijwerken
