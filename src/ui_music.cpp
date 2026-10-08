@@ -221,11 +221,12 @@ static void playpause_btn_event_cb(lv_event_t * e)
 
     const char* service = p.is_playing ? "media_pause" : "media_play";
 
-    ha_call_service("media_player", service, p.entity_id);
-
-    // Optimistische UI-update — sync_music() bevestigt dit binnen 5 sec.
-    p.is_playing = !p.is_playing;
-    update_player_card(idx);
+    if (ha_call_service("media_player", service, p.entity_id)) {
+        p.is_playing = !p.is_playing;
+        update_player_card(idx);
+    } else {
+        Serial.println("[HA] Afspelen/pauzeren mislukt; UI-status blijft ongewijzigd");
+    }
 }
 
 static void prev_btn_event_cb(lv_event_t * e)
@@ -267,17 +268,21 @@ static void volume_slider_released_cb(lv_event_t * e)
         value / 100.0f
     );
 
-    ha_call_service(
-        "media_player",
-        "volume_set",
-        players[idx].entity_id,
-        extra
-    );
+    if (ha_call_service(
+            "media_player",
+            "volume_set",
+            players[idx].entity_id,
+            extra
+        )) {
+        players[idx].volume_pct = value;
 
-    players[idx].volume_pct = value;
-
-    if (players[idx].lbl_volume_pct != nullptr) {
-        lv_label_set_text_fmt(players[idx].lbl_volume_pct, "%d%%", value);
+        if (players[idx].lbl_volume_pct != nullptr) {
+            lv_label_set_text_fmt(players[idx].lbl_volume_pct, "%d%%", value);
+        }
+    } else {
+        // Herstel de slider/waarde uit de laatst bevestigde HA-status.
+        update_player_card(idx);
+        Serial.println("[HA] Volume wijzigen mislukt; UI-status hersteld");
     }
 }
 
