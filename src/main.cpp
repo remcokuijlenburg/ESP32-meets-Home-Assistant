@@ -12,7 +12,7 @@
 #include "secrets.h"
 #include "ha_entities.h"
 #include "ota.h"
-
+#include "idle_manager.h"
 
 // ====
 // DISPLAY / TOUCH CONFIGURATIE
@@ -41,6 +41,14 @@ void my_touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
 
     if (ts.isTouched && ts.touches > 0) {
 
+        idle_manager_touch_detected();
+
+        if (idle_manager_is_wake_touch()) {
+            data->state = LV_INDEV_STATE_REL;
+            idle_manager_clear_wake_touch();
+            return;
+        }
+
         // Touch-coördinaten omzetten naar de schermoriëntatie
         int x = ts.points[0].y;
         int y = 479 - ts.points[0].x;
@@ -50,7 +58,6 @@ void my_touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
         data->state = LV_INDEV_STATE_PR;
 
     } else {
-
         data->state = LV_INDEV_STATE_REL;
     }
 }
@@ -182,9 +189,48 @@ void setup()
 
     Serial.println("Home Assistant initialized");
 
+    idle_manager_init();
+    Serial.println("Idle manager initialized");
+
     Serial.println("====");
     Serial.println("Setup complete");
     Serial.println("====");
+}
+
+// ====
+// WIFI HERSTEL
+// ====
+
+static void maintain_wifi()
+{
+    static uint32_t last_attempt = 0;
+    static bool was_connected = false;
+    const uint32_t RECONNECT_INTERVAL_MS = 10000;
+
+    bool connected = (WiFi.status() == WL_CONNECTED);
+    if (connected) {
+        if (!was_connected) {
+            Serial.print("[WiFi] Verbonden, IP: ");
+            Serial.println(WiFi.localIP());
+            ui_set_wifi_connected(true);
+            sntp_clock_init();
+        }
+        was_connected = true;
+        return;
+    }
+
+    if (was_connected) {
+        Serial.println("[WiFi] Verbinding verloren");
+        ui_set_wifi_connected(false);
+    }
+    was_connected = false;
+
+    uint32_t now = millis();
+    if (now - last_attempt >= RECONNECT_INTERVAL_MS) {
+        last_attempt = now;
+        Serial.println("[WiFi] Opnieuw verbinden...");
+        WiFi.reconnect();
+    }
 }
 
 // ====
@@ -209,6 +255,9 @@ void loop()
     // ----
 
     lv_timer_handler();
+    idle_manager_update();
+
+    maintain_wifi();
 
     // ----
     // Home Assistant verwerken
