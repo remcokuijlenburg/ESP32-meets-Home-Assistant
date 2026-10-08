@@ -60,11 +60,13 @@ static void nav_music_cb(lv_event_t * e)
 
 static void tv_btn_event_cb(lv_event_t * e)
 {
+    bool ok;
+
     if (!tv_is_on) {
 
         // Aanzetten via de HA-automatisering (regelt WOL/inputs),
         // dezelfde die ook aan de Hue-knop hangt.
-        ha_call_service(
+        ok = ha_call_service(
             "automation",
             "trigger",
             HA_AUTOMATION_TV_AAN,
@@ -73,15 +75,19 @@ static void tv_btn_event_cb(lv_event_t * e)
 
     } else {
 
-        // Uitzetten: beide media_players rechtstreeks uitzetten
-        ha_call_service("media_player", "turn_off", HA_TV_LG);
-        ha_call_service("media_player", "turn_off", HA_TV_KPN);
+        // Uitzetten: beide media_players rechtstreeks uitzetten.
+        ok = ha_call_service("media_player", "turn_off", HA_TV_LG);
+        ok = ha_call_service("media_player", "turn_off", HA_TV_KPN) && ok;
     }
 
-    // Optimistische UI-update — sync_tv() bevestigt dit binnen
-    // 5 seconden met de echte HA-status.
-    tv_is_on = !tv_is_on;
-    update_tv_button();
+    // Verander de lokale status alleen nadat HA de actie accepteert.
+    // sync_tv() controleert die status daarna binnen vijf seconden opnieuw.
+    if (ok) {
+        tv_is_on = !tv_is_on;
+        update_tv_button();
+    } else {
+        Serial.println("[HA] TV-actie mislukt; UI-status blijft ongewijzigd");
+    }
 }
 
 // ==========================================
