@@ -39,21 +39,51 @@ static lv_color_t *draw_buf1 = nullptr;
 static lv_color_t *draw_buf2 = nullptr;
 static lv_disp_draw_buf_t draw_buf_dsc;
 static lv_disp_drv_t disp_drv;
+static uint8_t current_backlight = BRIGHT_FULL;
 
 void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
-  uint32_t w = area->x2 - area->x1 + 1;
-  uint32_t h = area->y2 - area->y1 + 1;
+  if (disp == nullptr || area == nullptr || color_p == nullptr) {
+    Serial.println("display_flush: invalid parameters");
+    if (disp != nullptr) {
+      lv_disp_flush_ready(disp);
+    }
+    return;
+  }
+
+  uint32_t w = (uint32_t)(area->x2 - area->x1 + 1);
+  uint32_t h = (uint32_t)(area->y2 - area->y1 + 1);
+
+  if (w == 0 || h == 0 || w > 480 || h > 480) {
+    Serial.printf("display_flush: invalid area %ux%u\n", w, h);
+    lv_disp_flush_ready(disp);
+    return;
+  }
+
   gfx->draw16bitRGBBitmap(area->x1, area->y1, (uint16_t *)color_p, w, h);
   lv_disp_flush_ready(disp);
 }
 
 void display_set_backlight(uint8_t brightness) {
-  ledcWrite(PIN_BACKLIGHT, brightness);
+  if (brightness > 255) {
+    brightness = 255;
+  }
+
+  if (brightness == current_backlight) {
+    return;
+  }
+
+  int step = (brightness > current_backlight) ? 1 : -1;
+  while (current_backlight != brightness) {
+    current_backlight += step;
+    ledcWrite(PIN_BACKLIGHT, current_backlight);
+    delay(4);
+  }
 }
 
 void display_init() {
   ledcAttach(PIN_BACKLIGHT, 5000, 8);
-  ledcWrite(PIN_BACKLIGHT, BRIGHT_FULL);
+  current_backlight = BRIGHT_FULL;
+  ledcWrite(PIN_BACKLIGHT, current_backlight);
 
   gfx->begin();
   gfx->fillScreen(0x0000);
