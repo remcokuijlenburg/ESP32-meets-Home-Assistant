@@ -9,6 +9,39 @@
 #include "ha_entities.h"
 #include "scherm_ui.h"
 
+// Een onjuist of ingetrokken token kan Home Assistant laten reageren met 401/403.
+// Pauzeer daarna tijdelijk om herhaalde mislukte logins en een mogelijke IP-ban
+// te voorkomen. millis()-vergelijkingen blijven ook correct na overflow.
+static uint32_t ha_auth_retry_after = 0;
+static uint32_t ha_auth_last_skip_log = 0;
+static const uint32_t HA_AUTH_BACKOFF_MS = 5UL * 60UL * 1000UL;
+
+static bool ha_requests_allowed()
+{
+    if (ha_auth_retry_after == 0 ||
+        (int32_t)(millis() - ha_auth_retry_after) >= 0) {
+        ha_auth_retry_after = 0;
+        return true;
+    }
+
+    if (millis() - ha_auth_last_skip_log >= 30000) {
+        ha_auth_last_skip_log = millis();
+        Serial.println("[HA] Requests tijdelijk gepauzeerd na authenticatiefout");
+    }
+    return false;
+}
+
+static void ha_note_auth_failure(int http_code)
+{
+    if (http_code == 401 || http_code == 403) {
+        ha_auth_retry_after = millis() + HA_AUTH_BACKOFF_MS;
+        Serial.printf(
+            "[HA] Authenticatie afgewezen (HTTP %d); 5 minuten geen nieuwe requests\n",
+            http_code
+        );
+    }
+}
+
 // ====
 // INTERNE HULPFUNCTIES
 // ====
@@ -18,6 +51,10 @@
 
 static String ha_get_state(const char* entity_id)
 {
+    if (!ha_requests_allowed()) {
+        return "";
+    }
+
     HTTPClient http;
     http.setTimeout(5000);
 
@@ -35,6 +72,7 @@ static String ha_get_state(const char* entity_id)
     int httpCode = http.GET();
 
     if (httpCode != 200) {
+        ha_note_auth_failure(httpCode);
 
         Serial.printf(
             "[HA] HTTP %d voor %s\n",
@@ -89,6 +127,10 @@ bool ha_call_service(
         return false;
     }
 
+    if (!ha_requests_allowed()) {
+        return false;
+    }
+
     HTTPClient http;
     http.setTimeout(5000);
 
@@ -132,6 +174,7 @@ bool ha_call_service(
     bool ok = (httpCode == 200 || httpCode == 201);
 
     if (!ok) {
+        ha_note_auth_failure(httpCode);
         Serial.printf(
             "[HA] Service-aanroep %s.%s op %s mislukt (HTTP %d)\n",
             domain, service, entity_id, httpCode
@@ -159,6 +202,10 @@ static float ha_get_float_attribute(
     float fallback = 0.0f
 )
 {
+    if (!ha_requests_allowed()) {
+        return fallback;
+    }
+
     HTTPClient http;
     http.setTimeout(5000);
 
@@ -176,6 +223,7 @@ static float ha_get_float_attribute(
     int httpCode = http.GET();
 
     if (httpCode != 200) {
+        ha_note_auth_failure(httpCode);
         http.end();
         return fallback;
     }
@@ -205,6 +253,10 @@ static String ha_get_string_attribute(
     const char* fallback = ""
 )
 {
+    if (!ha_requests_allowed()) {
+        return fallback;
+    }
+
     HTTPClient http;
     http.setTimeout(5000);
 
@@ -222,6 +274,7 @@ static String ha_get_string_attribute(
     int httpCode = http.GET();
 
     if (httpCode != 200) {
+        ha_note_auth_failure(httpCode);
         http.end();
         return fallback;
     }
@@ -582,6 +635,10 @@ static HaMediaPlayerRaw ha_get_media_player(const char* entity_id)
     r.volume_pct = -1;
     r.grouped = false;
 
+    if (!ha_requests_allowed()) {
+        return r;
+    }
+
     HTTPClient http;
     http.setTimeout(5000);
 
@@ -596,6 +653,7 @@ static HaMediaPlayerRaw ha_get_media_player(const char* entity_id)
     int httpCode = http.GET();
 
     if (httpCode != 200) {
+        ha_note_auth_failure(httpCode);
         Serial.printf("[HA] HTTP %d voor %s\n", httpCode, entity_id);
         http.end();
         return r;
