@@ -1,6 +1,6 @@
 # Tessera
 
-A Home Assistant wall-panel controller for the **Guition ESP32-S3-4848S040** — a 4" 480×480 capacitive-touch display. Tessera shows a grid of device tiles that toggle Home Assistant entities over the WebSocket API, plus indoor/outdoor temperatures and a full thermostat control view.
+A Home Assistant wall-panel controller for the **Guition ESP32-S3-4848S040** — a 4" 480×480 capacitive-touch display. Tessera shows a grid of device tiles that toggle Home Assistant entities through the REST API, plus indoor/outdoor temperatures and a full thermostat control view.
 
 > **Why "Tessera"?** A *tessera* is a single small tile used to build a mosaic. The name fits a screen made of device tiles — and the configuration array that defines them is, fittingly, called `MOSAIC[]`.
 
@@ -36,7 +36,7 @@ A Home Assistant wall-panel controller for the **Guition ESP32-S3-4848S040** —
 Before you start, you'll need:
 
 - **A running Home Assistant instance** on your network, reachable over HTTP
-  (default port `8123`) with the WebSocket API enabled (on by default). Tessera is
+  (default port `8123`) with the REST API available (on by default). Tessera is
   a controller — it does **not** run Home Assistant itself.
 - **A Home Assistant long-lived access token** (HA → your profile → **Security** →
   *Long-Lived Access Tokens*, at the bottom of the page) for the panel to
