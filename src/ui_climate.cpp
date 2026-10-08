@@ -182,26 +182,30 @@ static void detail_slider_released_cb(lv_event_t* e)
         new_target
     );
 
-    ha_call_service(
-        "climate",
-        "set_temperature",
-        room.entity_id,
-        extra
-    );
+    if (!ha_call_service(
+            "climate",
+            "set_temperature",
+            room.entity_id,
+            extra
+        )) {
+        // Herstel de schuif naar de laatst bevestigde HA-waarde.
+        lv_slider_set_value(slider, (int)(room.target_temp * 10.0f), LV_ANIM_OFF);
+        Serial.println("[HA] Temperatuur wijzigen mislukt; UI-status hersteld");
+        return;
+    }
 
     // Een temperatuur instellen betekent dat je wilt verwarmen —
     // zet de kachel/thermostaat daarom ook aan als hij uit stond.
     // (Vonroc-kachel in het Tuinkantoor staat vaak uit, en negeert
     // set_temperature dan stilzwijgend.)
 
-    if (!room.is_on) {
-
+    if (!room.is_on &&
         ha_call_service(
             "climate",
             "set_hvac_mode",
             room.entity_id,
             "\"hvac_mode\":\"heat\""
-        );
+        )) {
 
         room.is_on = true;
 
@@ -224,15 +228,25 @@ static void detail_switch_event_cb(lv_event_t* e)
     bool checked = lv_obj_has_state(sw, LV_STATE_CHECKED);
 
     ClimateRoom& room = climate_rooms[active_room_index];
+    bool previous_state = room.is_on;
+
+    if (!ha_call_service(
+            "climate",
+            "set_hvac_mode",
+            room.entity_id,
+            checked ? "\"hvac_mode\":\"heat\"" : "\"hvac_mode\":\"off\""
+        )) {
+        // De switch is al door LVGL omgezet; herstel de laatst bevestigde status.
+        if (previous_state) {
+            lv_obj_add_state(sw, LV_STATE_CHECKED);
+        } else {
+            lv_obj_clear_state(sw, LV_STATE_CHECKED);
+        }
+        Serial.println("[HA] Klimaatmodus wijzigen mislukt; UI-status hersteld");
+        return;
+    }
 
     room.is_on = checked;
-
-    ha_call_service(
-        "climate",
-        "set_hvac_mode",
-        room.entity_id,
-        checked ? "\"hvac_mode\":\"heat\"" : "\"hvac_mode\":\"off\""
-    );
 
     if (lbl_switch_detail != NULL) {
         lv_label_set_text(lbl_switch_detail, checked ? "Aan" : "Uit");
