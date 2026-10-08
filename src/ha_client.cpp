@@ -71,8 +71,9 @@ static String ha_get_state(const char* entity_id)
 // Dit is de schrijf-tegenhanger van ha_get_state(): hiermee stuur je
 // commando's naar HA (lamp aan/uit, temperatuur zetten, media pauzeren, ...).
 //
-// extra_json: optionele extra velden ZONDER buitenste accolades,
-//   bv. "\"brightness_pct\":50" — wordt toegevoegd aan de request-body.
+// extra_json: optionele JSON-velden ZONDER buitenste accolades,
+//   bv. "\"brightness_pct\":50". De velden worden eerst gevalideerd
+//   en daarna veilig met entity_id tot één request-body samengevoegd.
 // Geeft true terug bij HTTP 200/201, false bij een fout of geen WiFi.
 // ----
 
@@ -101,14 +102,30 @@ bool ha_call_service(
     http.addHeader("Authorization", "Bearer " + String(HA_TOKEN));
     http.addHeader("Content-Type", "application/json");
 
-    String body = "{\"entity_id\":\"" + String(entity_id) + "\"";
+    JsonDocument body_doc;
+    body_doc["entity_id"] = entity_id;
 
     if (extra_json != nullptr && extra_json[0] != '\0') {
-        body += ",";
-        body += extra_json;
+        JsonDocument extra_doc;
+        String extra_body = "{" + String(extra_json) + "}";
+        DeserializationError err = deserializeJson(extra_doc, extra_body);
+
+        if (err || !extra_doc.is<JsonObject>()) {
+            Serial.printf(
+                "[HA] Ongeldige service-parameters voor %s.%s op %s\n",
+                domain, service, entity_id
+            );
+            http.end();
+            return false;
+        }
+
+        for (JsonPair pair : extra_doc.as<JsonObject>()) {
+            body_doc[pair.key()] = pair.value();
+        }
     }
 
-    body += "}";
+    String body;
+    serializeJson(body_doc, body);
 
     int httpCode = http.POST(body);
 
