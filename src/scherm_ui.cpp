@@ -35,7 +35,6 @@ void setup_atag_style_ui() {
     build_climate_detail(scr_climate_detail);
     build_music_screen(scr_music);
 
-
     // 3. Start op het homescreen
     lv_scr_load(scr_home);
 }
@@ -97,26 +96,60 @@ void ui_set_home_thermostat(float current_temp, float target_temp) {
     }
 }
 
+// ==========================================
+// TILE UPDATE FUNCTIES (met validatie)
+// ==========================================
+
 void ui_update_tile_state(int idx, const char* state) {
-    // Logica voor tile status update
+    if (state == nullptr || idx < 0 || idx >= 9) {
+        if (idx < 0 || idx >= 9) {
+            Serial.printf("ui_update_tile_state: invalid index %d\n", idx);
+        }
+        return;
+    }
+    Serial.printf("[UI] Tile %d state: %s\n", idx, state);
+    // TODO: Implementeer werkelijke tile-status update hier
+    // Zoek tile object op basis van idx en werk visueel element bij
 }
 
 void ui_update_tile_value(int idx, const char* val) {
-    // Logica voor tile waarde update
+    if (val == nullptr || idx < 0 || idx >= 9) {
+        if (idx < 0 || idx >= 9) {
+            Serial.printf("ui_update_tile_value: invalid index %d\n", idx);
+        }
+        return;
+    }
+    Serial.printf("[UI] Tile %d value: %s\n", idx, val);
+    // TODO: Implementeer werkelijke tile-waarde update hier
+    // Werk brightness/speed percentage of ander numeriek display bij
 }
 
 void ui_update_thermostat(ThermoState *s) {
-    // Logica voor thermostaat update
+    if (s == nullptr) {
+        Serial.println("ui_update_thermostat: nullptr");
+        return;
+    }
+    Serial.printf("[UI] Thermostat: mode=%s, current=%d, target=%d, action=%s\n",
+                  s->mode, s->current, s->target, s->action);
+    // TODO: Implementeer werkelijke thermostaat detail-scherm update
+    // Update climate_detail screen widgets met huidige state
 }
 
+// ==========================================
+// VERBINDINGSSTATUS SETTERS
+// ==========================================
+
 void ui_set_ha_connected(bool connected) {
-    Serial.printf("HA Connection status: %s\n", connected ? "Connected" : "Disconnected");
+    Serial.printf("[UI] HA Connection status: %s\n", connected ? "Connected" : "Disconnected");
+    // TODO: Voeg visuele indicator toe (bijv. status icon in topbar)
 }
 
 void ui_set_wifi_connected(bool connected) {
-    Serial.printf("WiFi Connection status: %s\n", connected ? "Connected" : "Disconnected");
+    Serial.printf("[UI] WiFi Connection status: %s\n", connected ? "Connected" : "Disconnected");
+    // TODO: Voeg visuele WiFi indicator toe
 }
 
 void ui_set_fan_state(bool on) {
-    Serial.printf("Fan state: %s\n", on ? "ON" : "OFF");
+    Serial.printf("[UI] Fan state: %s\n", on ? "ON" : "OFF");
+    // TODO: Voeg fan-state visueel feedback toe (bijv. animatie/icoon)
 }
