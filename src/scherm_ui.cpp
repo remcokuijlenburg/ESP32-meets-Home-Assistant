@@ -33,6 +33,7 @@ void setup_atag_style_ui() {
     build_climate_detail(scr_climate_detail);
     build_music_screen(scr_music);
 
+    // Start op het homescreen
     lv_scr_load(scr_home);
 }
 
@@ -97,6 +98,8 @@ void ui_update_tile_state(int idx, const char* state) {
         return;
     }
     Serial.printf("[UI] Tile %d state: %s\n", idx, state);
+    // TODO: Implementeer werkelijke tile-status update hier
+    // Zoek tile object op basis van idx en werk visueel element bij
 }
 
 void ui_update_tile_value(int idx, const char* val) {
@@ -107,6 +110,8 @@ void ui_update_tile_value(int idx, const char* val) {
         return;
     }
     Serial.printf("[UI] Tile %d value: %s\n", idx, val);
+    // TODO: Implementeer werkelijke tile-waarde update hier
+    // Werk brightness/speed percentage of ander numeriek display bij
 }
 
 void ui_update_thermostat(ThermoState *s) {
@@ -116,4 +121,6 @@ void ui_update_thermostat(ThermoState *s) {
     }
     Serial.printf("[UI] Thermostat: mode=%s, current=%d, target=%d, action=%s\n",
                   s->mode, s->current, s->target, s->action);
+    // TODO: Implementeer werkelijke thermostaat detail-scherm update
+    // Update climate_detail screen widgets met huidige state
 }
