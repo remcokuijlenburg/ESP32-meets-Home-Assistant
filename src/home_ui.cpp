@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <lvgl.h>
 #include "scherm_ui.h"
 #include "ui_icons.h"
