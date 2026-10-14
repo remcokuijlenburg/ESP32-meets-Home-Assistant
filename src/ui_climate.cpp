@@ -20,11 +20,14 @@ struct ClimateRoom {
     bool is_on;
 };
 
-#define NUM_CLIMATE_ROOMS 2
+#define NUM_CLIMATE_ROOMS 5
 
 static ClimateRoom climate_rooms[NUM_CLIMATE_ROOMS] = {
     {"Woonkamer",   HA_CLIMATE_WOONKAMER,   20.0f, 20.0f, false, true},
-    {"Tuinkantoor", HA_CLIMATE_TUINKANTOOR, 20.0f, 20.0f, false, true}
+    {"Tuinkantoor", HA_CLIMATE_TUINKANTOOR, 20.0f, 20.0f, false, true},
+    {"Boaz",        HA_CLIMATE_BOAZ,        20.0f, 20.0f, false, true},
+    {"Kai",         HA_CLIMATE_KAI,         20.0f, 20.0f, false, true},
+    {"Overloop",    HA_CLIMATE_OVERLOOP,    20.0f, 20.0f, false, true}
 };
 
 // ==========================================
@@ -869,7 +872,7 @@ void build_climate_overview(lv_obj_t* parent)
         lv_obj_set_size(
             tile,
             220,
-            160
+            115
         );
 
         lv_obj_set_style_bg_color(

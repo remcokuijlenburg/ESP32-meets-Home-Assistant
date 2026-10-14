@@ -50,6 +50,7 @@ void build_music_screen(lv_obj_t * parent);
 // Home Assistant data setters
 void ui_set_indoor_temp(int deg);
 void ui_set_home_thermostat(float current_temp, float target_temp);
+void ui_set_home_schedule(bool active);
 void ui_set_outdoor_temp(float deg);
 void ui_set_boiler_flame(bool active);
 void ui_update_tile_state(int idx, const char* state);

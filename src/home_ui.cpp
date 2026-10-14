@@ -24,6 +24,7 @@ static const lv_color_t TV_COLOR_ON  = lv_color_hex(0x0099D8);
 
 static lv_obj_t* lbl_wifi_status = nullptr;
 static lv_obj_t* lbl_ha_status   = nullptr;
+static lv_obj_t* lbl_schema_home = nullptr;
 
 static const lv_color_t CONN_COLOR_OK     = lv_color_hex(0x0099D8);
 static const lv_color_t CONN_COLOR_DOWN   = lv_color_hex(0xAAAAAA);
@@ -75,6 +76,19 @@ void ui_set_tv_state(bool on)
 {
     tv_is_on = on;
     update_tv_button();
+}
+
+void ui_set_home_schedule(bool active)
+{
+    if (lbl_schema_home == nullptr) {
+        return;
+    }
+
+    lv_obj_set_style_text_color(
+        lbl_schema_home,
+        active ? CONN_COLOR_OK : CONN_COLOR_DOWN,
+        0
+    );
 }
 
 // ==========================================
@@ -318,6 +332,8 @@ sntp_clock_set_label(lbl_date);
         lbl_schema,
         LV_SYMBOL_CHARGE " Schema"
     );
+
+    lbl_schema_home = lbl_schema;
 
     lv_obj_set_style_text_color(
         lbl_schema,

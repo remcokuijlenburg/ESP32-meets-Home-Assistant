@@ -91,6 +91,19 @@
 #define HA_CLIMATE_TUINKANTOOR \
     "climate.vonroc_verwarming"
 
+#define HA_CLIMATE_BOAZ \
+    "climate.radiator_boaz_thermostaat"
+#define HA_CLIMATE_KAI \
+    "climate.radiator_kai_thermostaat"
+#define HA_CLIMATE_OVERLOOP \
+    "climate.radiator_overloop_thermostaat"
+
+// Scheduler-schakelaars voor het woonkamer schema
+#define HA_SCHEDULE_WOONKAMER_1 \
+    "switch.schedule_4ab924"
+#define HA_SCHEDULE_WOONKAMER_2 \
+    "switch.schedule_278d19"
+
 // ====
 // SONOS
 // ====

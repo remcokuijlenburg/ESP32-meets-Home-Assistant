@@ -450,8 +450,68 @@ static void sync_lights()
 // KLIMAAT
 // ====
 
+static void sync_home_schedule()
+{
+    String schedule_1 = ha_get_state(HA_SCHEDULE_WOONKAMER_1);
+    String schedule_2 = ha_get_state(HA_SCHEDULE_WOONKAMER_2);
+
+    bool schedule_1_known = schedule_1 == "on" || schedule_1 == "off";
+    bool schedule_2_known = schedule_2 == "on" || schedule_2 == "off";
+
+    if (schedule_1 == "on" || schedule_2 == "on") {
+        ui_set_home_schedule(true);
+    } else if (schedule_1_known && schedule_2_known) {
+        ui_set_home_schedule(false);
+    }
+}
+
+static void sync_climate_room(const char* entity_id, const char* room_name)
+{
+    float current_temp = ha_get_float_attribute(
+        entity_id,
+        "current_temperature",
+        20.0f
+    );
+    if (current_temp <= 0.0f || current_temp > 50.0f) {
+        current_temp = 20.0f;
+    }
+
+    float target_temp = ha_get_float_attribute(
+        entity_id,
+        "temperature",
+        20.0f
+    );
+    if (target_temp < 5.0f || target_temp > 30.0f) {
+        target_temp = 20.0f;
+    }
+
+    String mode = ha_get_state(entity_id);
+    bool is_on = mode != "off" && mode.length() > 0 &&
+                 mode != "unavailable" && mode != "unknown";
+    bool heating = ha_get_string_attribute(entity_id, "hvac_action") == "heating";
+
+    Serial.printf(
+        "[HA] %s: %.1f -> %.1f °C, aan: %s, verwarmt: %s\n",
+        room_name,
+        current_temp,
+        target_temp,
+        is_on ? "JA" : "NEE",
+        heating ? "JA" : "NEE"
+    );
+
+    ui_set_climate_state(
+        room_name,
+        current_temp,
+        target_temp,
+        heating,
+        is_on
+    );
+}
+
 static void sync_climate()
 {
+    sync_home_schedule();
+
     // ----
     // Actuele temperatuur:
     // current_temperature attribuut van de woonkamer thermostaat
@@ -597,6 +657,10 @@ static void sync_climate()
         tk_heating,
         tk_is_on
     );
+
+    sync_climate_room(HA_CLIMATE_BOAZ, "Boaz");
+    sync_climate_room(HA_CLIMATE_KAI, "Kai");
+    sync_climate_room(HA_CLIMATE_OVERLOOP, "Overloop");
 
     // ----
     // UI bijwerken — topbar temperatuurwidget
